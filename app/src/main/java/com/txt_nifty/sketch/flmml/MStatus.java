@@ -1,0 +1,44 @@
+package com.txt_nifty.sketch.flmml;
+
+public final class MStatus {
+    public static final int EOT = 0;
+    public static final int NOP = 1;
+    public static final int NOTE_ON = 2;
+    public static final int NOTE_OFF = 3;
+    public static final int TEMPO = 4;
+    public static final int VOLUME = 5;
+    public static final int NOTE = 6;
+    public static final int FORM = 7;
+    public static final int ENVELOPE1_ATK = 8;
+    public static final int ENVELOPE1_ADD = 9;
+    public static final int ENVELOPE1_REL = 10;
+    public static final int NOISE_FREQ = 11;
+    public static final int PWM = 12;
+    public static final int PAN = 13;
+    public static final int FORMANT = 14;
+    public static final int DETUNE = 15;
+    public static final int LFO_FMSF = 16;
+    public static final int LFO_DPWD = 17;
+    public static final int LFO_DLTM = 18;
+    public static final int LFO_TARGET = 19;
+    public static final int LPF_SWTAMT = 20;
+    public static final int LPF_FRQRES = 21;
+    public static final int CLOSE = 22;
+    public static final int VOL_MODE = 23;
+    public static final int ENVELOPE2_ATK = 24;
+    public static final int ENVELOPE2_ADD = 25;
+    public static final int ENVELOPE2_REL = 26;
+    public static final int INPUT = 27;
+    public static final int OUTPUT = 28;
+    public static final int EXPRESSION = 29;
+    public static final int RINGMODULATE = 30;
+    public static final int SYNC = 31;
+    public static final int PORTAMENTO = 32;
+    public static final int MIDIPORT = 33;
+    public static final int MIDIPORTRATE = 34;
+    public static final int BASENOTE = 35;
+    public static final int POLY = 36;
+    public static final int SOUND_OFF = 37;
+    public static final int RESET_ALL = 38;
+    public static final int HW_LFO = 39;
+}

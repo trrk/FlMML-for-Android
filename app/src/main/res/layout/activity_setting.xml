@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="出力(次回再生時から反映されます)"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <RadioGroup
+            android:id="@+id/radios"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <RadioButton
+                android:id="@+id/type8"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:enabled="false"
+                android:text="8bit (非推奨)"
+                android:visibility="gone" />
+
+            <RadioButton
+                android:id="@+id/type16"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="16bit" />
+
+            <RadioButton
+                android:id="@+id/type32"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="32bit-float (Flash版と同じ・Lollipop以降のみ対応)" />
+
+
+        </RadioGroup>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="15dp"
+            android:text="このアプリのほとんどは修正BSDライセンスで公開されているFlMMLのプログラムを参考に作られています。"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="@string/license" />
+
+    </LinearLayout>
+</ScrollView>
