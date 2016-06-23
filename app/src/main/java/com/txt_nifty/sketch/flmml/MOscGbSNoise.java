@@ -97,7 +97,7 @@ public class MOscGbSNoise extends MOscMod {
     public void setNoiseFreq(int no) {
         if (no < 0) no = 0;
         if (no > 63) no = 63;
-        mFreqShift = (1048576 << (GB_NOISE_PHASE_SFT - 2)) / (sInterval[no] * 11025);
+        mFreqShift = (1048576 << (GB_NOISE_PHASE_SFT - 2)) / sInterval[no] / 11025;
     }
 
     public void setNoteNo(int noteNo) {
