@@ -161,25 +161,17 @@ public class MEvent {
         return mData0 / TEMPO_SCALE;
     }
 
-    ;
-
     public void setTempo(double tempo) {
         set(MStatus.TEMPO, (int) (tempo * TEMPO_SCALE), 0);
     }
-
-    ;
 
     public int getVolume() {
         return mData0;
     }
 
-    ;
-
     public void setVolume(int vol) {
         set(MStatus.VOLUME, vol, 0);
     }
-
-    ;
 
     public int getForm() {
         return mData0;
