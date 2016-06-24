@@ -1,16 +1,16 @@
 package com.txt_nifty.sketch.flmml;
 
 public class MEvent {
-    private int mDelta;
+    private static final double TEMPO_SCALE = 100; // bpm小数点第二位まで有効
+    public int delta;
+    public long tick;
     private int mStatus;
     private int mData0;
     private int mData1;
-    private long mTick;
-    private double TEMPO_SCALE = 100; // bpm小数点第二位まで有効
 
     public MEvent(long tick) {
         set(MStatus.NOP, 0, 0);
-        setTick(tick);
+        this.tick = tick;
     }
 
     public void set(int status, int data0, int data1) {
@@ -131,22 +131,6 @@ public class MEvent {
 
     public int getStatus() {
         return mStatus;
-    }
-
-    public int getDelta() {
-        return mDelta;
-    }
-
-    public void setDelta(int delta) {
-        mDelta = delta;
-    }
-
-    public long getTick() {
-        return mTick;
-    }
-
-    public void setTick(long tick) {
-        mTick = tick;
     }
 
     public int getNoteNo() {

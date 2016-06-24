@@ -8,7 +8,6 @@ import com.txt_nifty.sketch.flmml.rep.EventDispatcher;
 import com.txt_nifty.sketch.flmml.rep.FlMMLUtil;
 import com.txt_nifty.sketch.flmml.rep.MacroArgument;
 
-import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -69,10 +68,6 @@ public class MML extends EventDispatcher {
 
     public static String removeWhitespace(String str) {
         return str.replaceAll("[ 　\n\r\t\f]+", "");
-    }
-
-    public static StringBuilder remove(StringBuilder str, int start, int end) {
-        return str.delete(start, end + 1);
     }
 
     public void setonSignal(Callback func) {
@@ -260,8 +255,8 @@ public class MML extends EventDispatcher {
                 next();
                 o = getSInt(50);
                 if (o < 0) {
-                    if (o > -1)
-                        o = -1;
+                    //if (o > -1)
+                    //    o = -1;
                     if (o < -99)
                         o = -99;
                 } else {
@@ -474,7 +469,7 @@ public class MML extends EventDispatcher {
                             if (rate > 127)
                                 rate = 127;
                         }
-                        mTracks.get(mTrackNo).recMidiPortRate(rate * 1);
+                        mTracks.get(mTrackNo).recMidiPortRate(rate);
                         break;
                     case 3:
                         if (getChar() == ',') {
@@ -581,11 +576,11 @@ public class MML extends EventDispatcher {
             case '(':
             case ')':
                 i = getUInt(1);
-                if (c == '(' && mVelDir || c == ')' && !mVelDir) {
-                    mVelocity += (mVelDetail) ? (1 * i) : (8 * i);
+                if (c == '(' && mVelDir || c == ')' && !mVelDir) { // up
+                    mVelocity += (mVelDetail) ? (i) : (8 * i);
                     if (mVelocity > 127) mVelocity = 127;
                 } else { // down
-                    mVelocity -= (mVelDetail) ? (1 * i) : (8 * i);
+                    mVelocity -= (mVelDetail) ? (i) : (8 * i);
                     if (mVelocity < 0) mVelocity = 0;
                 }
                 break;
@@ -754,7 +749,6 @@ public class MML extends EventDispatcher {
                 l *= 0.1;
                 switch (c) {
                     case '0':
-                        ret = ret + 0 * l;
                         next();
                         break;
                     case '1':
@@ -853,9 +847,10 @@ public class MML extends EventDispatcher {
         SparseIntArray start = new SparseIntArray();
         SparseIntArray last = new SparseIntArray();
         int nest = -1;
-        CharBuffer cbuffer = null;
-        while (mLetter < mString.length()) {
-            char c = getCharNext();
+        int length = mString.length();
+        StringBuilder replaced = new StringBuilder();
+        while (mLetter < length) {
+            char c = mString.charAt(mLetter++);
             switch (c) {
                 case '/':
                     if (getChar() == ':') {
@@ -868,6 +863,7 @@ public class MML extends EventDispatcher {
                         mLetter--;
                         last.append(nest, mLetter);
                         mString.deleteCharAt(mLetter);
+                        length--;
                     }
                     break;
                 case ':':
@@ -876,29 +872,26 @@ public class MML extends EventDispatcher {
                         int offset = origin.get(nest);
                         int repeatnum = repeat.get(nest);
                         boolean haslast = last.get(nest) >= 0;
-                        String contents = repeatnum == 0 ? null : FlMMLUtil.substring(mString, start.get(nest), mLetter - 2);
                         if (repeatnum > 0) {
+                            String contents = FlMMLUtil.substring(mString, start.get(nest), mLetter - 2);
                             int contentslen = mLetter - 2 - start.get(nest);
-                            int contents2len = last.get(nest) - start.get(nest);
-                            int addedlen = !haslast ? repeatnum * contentslen : (repeatnum - 1) * contentslen + contents2len;
-                            if (cbuffer == null || cbuffer.capacity() < addedlen)
-                                cbuffer = CharBuffer.allocate(addedlen);
-                            else
-                                cbuffer.clear();
+                            int lastlen = last.get(nest) - start.get(nest);
+                            int addedlen = !haslast ? repeatnum * contentslen : (repeatnum - 1) * contentslen + lastlen;
+                            replaced.setLength(0);
                             for (int i = 0; i < repeatnum; i++) {
                                 if (i < repeatnum - 1 || !haslast) {
-                                    cbuffer.append(contents);
+                                    replaced.append(contents);
                                 } else {
-                                    cbuffer.append(mString, start.get(nest), last.get(nest));
+                                    replaced.append(mString, start.get(nest), last.get(nest));
                                 }
                             }
-                            cbuffer.clear();
-                            cbuffer.limit(addedlen);
-                            mString.delete(offset, mLetter);
-                            mString.insert(offset, cbuffer);
+                            mString.replace(offset, mLetter, replaced.toString());
                             offset += addedlen;
-                        } else
+                            length += offset - mLetter;
+                        } else {
                             mString.delete(offset, mLetter);
+                            length -= mLetter - offset;
+                        }
                         mLetter = offset;
                         nest--;
                     }
@@ -981,7 +974,6 @@ public class MML extends EventDispatcher {
                                 break;
                             }
                             if (FlMMLUtil.substring(code, i + 1, i + macro.args[j].id.length() + 1).equals(macro.args[j].id)) {
-                                //code = code.substring(0, i) + code.substring(i).replaceFirst("%" + macro.args[j].id, args.get(macro.args[j].index));
                                 code.replace(i, i + macro.args[j].id.length() + 1, args.get(macro.args[j].index));
                                 i += args.get(macro.args[j].index).length() - 1;
                                 break;
@@ -1092,7 +1084,7 @@ public class MML extends EventDispatcher {
                 mString.delete(matched.start() - offset, matched.end() - offset);
                 offset += matched.end() - matched.start();
                 String[] wav = matched.group().split(" ");
-                StringBuffer wavs = new StringBuffer();
+                StringBuilder wavs = new StringBuilder();
                 for (int j = 1; j < wav.length; j++) wavs.append(wav[j]);
                 String[] arg = wavs.toString().split(",");
                 int waveNo = FlMMLUtil.parseInt(arg[0]);
@@ -1188,7 +1180,7 @@ public class MML extends EventDispatcher {
                                                 if (!replaceMacro(macroTable)) {
                                                     if (FlMMLUtil.substring(mString, mLetter, mLetter + id.length()).equals(id)) {
                                                         mLetter--;
-                                                        mString = remove(mString, mLetter, mLetter + id.length());
+                                                        mString = mString.delete(mLetter, mLetter + id.length() + 1);
                                                         warning(MWarning.RECURSIVE_MACRO, id);
                                                     }
                                                 }
@@ -1207,7 +1199,7 @@ public class MML extends EventDispatcher {
                                                 break;
                                         }
                                         macroTable.add(pos, new MacroArgument(id, FlMMLUtil.substring(mString, nameEnd + 1, last), args));
-                                        mString = remove(mString, start - 1, last);
+                                        mString.delete(start - 1, last + 1);
                                         mLetter = start - 1;
                                     }
                                 }
@@ -1297,7 +1289,7 @@ public class MML extends EventDispatcher {
                 case '*':
                     if (getChar() == '/') {
                         if (commentStart >= 0) {
-                            mString = remove(mString, commentStart, mLetter);
+                            mString = mString.delete(commentStart, mLetter + 1);
                             mLetter = commentStart;
                             commentStart = -1;
                         } else {
@@ -1319,7 +1311,7 @@ public class MML extends EventDispatcher {
                 if (commentStart < 0) {
                     commentStart = mLetter - 1;
                 } else {
-                    mString = remove(mString, commentStart, mLetter - 1);
+                    mString = mString.delete(commentStart, mLetter);
                     mLetter = commentStart;
                     commentStart = -1;
                 }
@@ -1483,6 +1475,7 @@ public class MML extends EventDispatcher {
         l = System.currentTimeMillis();
         process();
         Log.v("MML.time", "process():" + (System.currentTimeMillis() - l) + "ms");
+        mString = null;
 
         // omit
         if (mTracks.get(mTracks.size() - 1).getNumEvents() == 0) {
@@ -1493,6 +1486,7 @@ public class MML extends EventDispatcher {
         mTracks.get(MTrack.TEMPO_TRACK).conduct(mTracks);
 
         // post process
+        l = System.currentTimeMillis();
         for (int i = MTrack.TEMPO_TRACK; i < mTracks.size(); i++) {
             if (i > MTrack.TEMPO_TRACK) {
                 if (mUsingPoly && (mPolyForce || mTracks.get(i).findPoly())) {
@@ -1503,6 +1497,7 @@ public class MML extends EventDispatcher {
             }
             mSequencer.connect(mTracks.get(i));
         }
+        Log.v("MML.time", "post process:" + (System.currentTimeMillis() - l) + "ms");
 
         // initialize modules
         mSequencer.createPipes(mMaxPipe + 1);

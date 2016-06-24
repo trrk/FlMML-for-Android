@@ -1,6 +1,8 @@
 package com.txt_nifty.sketch.flmml;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 
 public class MTrack {
     public static final int TEMPO_TRACK = 0;
@@ -49,6 +51,11 @@ public class MTrack {
         mChordMode = false;
     }
 
+    private static double calcSpt(double bpm) {
+        double tps = bpm * 96.0 / 60.0;
+        return 44100.0 / tps;
+    }
+
     public int getNumEvents() {
         return mEvents.size();
     }
@@ -77,7 +84,7 @@ public class MTrack {
                 exec = 0;
                 if (mPointer < eLen) {
                     e = mEvents.get(mPointer);
-                    delta = e.getDelta() * mSpt;
+                    delta = e.delta * mSpt;
                     if (mNeedle >= delta) {
                         exec = 1;
                         switch (e.getStatus()) {
@@ -219,7 +226,7 @@ public class MTrack {
             int di;
             if (mPointer < eLen) {
                 e = mEvents.get(mPointer);
-                delta = e.getDelta() * mSpt;
+                delta = e.delta * mSpt;
                 di = (int) Math.ceil(delta - mNeedle);
                 if (i + di >= end)
                     di = end - i;
@@ -262,7 +269,7 @@ public class MTrack {
     }
 
     public void recDelta(MEvent e) {
-        e.setDelta(mDelta);
+        e.delta = mDelta;
         mDelta = 0;
     }
 
@@ -281,7 +288,7 @@ public class MTrack {
         } else {
             e0.setNote(noteNo);
         }
-        pushEvent(e0);
+        mEvents.add(e0);
         if (keyoff != 0) {
             int gate;
             gate = (int) (len * mGate) - mGate2;
@@ -301,7 +308,7 @@ public class MTrack {
     public void recNoteOff(int noteNo, int vel) {
         MEvent e = makeEvent();
         e.setNoteOff(noteNo, vel);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recRest(int len) {
@@ -321,8 +328,7 @@ public class MTrack {
     public void recChordEnd() {
         if (mChordMode) {
             if (mEvents.size() > 0) {
-                mDelta = (int) (mChordEnd - mEvents.get(mEvents.size() - 1)
-                        .getTick());
+                mDelta = (int) (mChordEnd - mEvents.get(mEvents.size() - 1).tick);
             } else {
                 mDelta = 0;
             }
@@ -339,60 +345,36 @@ public class MTrack {
     public void recVolume(int vol) {
         MEvent e = makeEvent();
         e.setVolume(vol);
-        pushEvent(e);
+        mEvents.add(e);
     }
+
+    //private void insertEvent(MEvent e) {}
+    //遅いので消し、recClose()でtickをもとにソートとdeltaのセットを行うように
+    //なお、TEMPO_TRACKはrecClose()を呼ばれないので注意
 
     private void recGlobal(long globalTick, MEvent e) {
         int n = mEvents.size();
         long preGlobalTick = 0;
         for (int i = 0; i < n; i++) {
             MEvent en = mEvents.get(i);
-            long nextTick = preGlobalTick + en.getDelta();
-            if (nextTick > globalTick
-                    || (nextTick == globalTick && en.getStatus() != MStatus.TEMPO)) {
-                en.setDelta((int) (nextTick - globalTick));
-                e.setDelta((int) (globalTick - preGlobalTick));
+            long nextTick = preGlobalTick + en.delta;
+            if (nextTick > globalTick || (nextTick == globalTick && en.getStatus() != MStatus.TEMPO)) {
+                en.delta = (int) (nextTick - globalTick);
+                e.delta = (int) (globalTick - preGlobalTick);
                 mEvents.add(i, e);
                 return;
             }
             preGlobalTick = nextTick;
         }
-        e.setDelta((int) (globalTick - preGlobalTick));
-        mEvents.add(e);
-    }
-
-    private void insertEvent(MEvent e) { //遅い
-        int n = mEvents.size();
-        long preGlobalTick = 0;
-        long globalTick = e.getTick();
-        for (int i = 0; i < n; i++) {
-            MEvent en = mEvents.get(i);
-            long nextTick = preGlobalTick + en.getDelta();
-            if (nextTick > globalTick) {
-                en.setDelta((int) (nextTick - globalTick));
-                e.setDelta((int) (globalTick - preGlobalTick));
-                mEvents.add(i, e);
-                return;
-            }
-            preGlobalTick = nextTick;
-        }
-        e.setDelta((int) (globalTick - preGlobalTick));
+        e.delta = (int) (globalTick - preGlobalTick);
         mEvents.add(e);
     }
 
     private MEvent makeEvent() {
         MEvent e = new MEvent(mGlobalTick);
-        e.setDelta(mDelta);
+        e.delta = mDelta;
         mDelta = 0;
         return e;
-    }
-
-    private void pushEvent(MEvent e) {
-        if (!mChordMode) {
-            mEvents.add(e);
-        } else {
-            insertEvent(e);
-        }
     }
 
     public void recTempo(long globalTick, double tempo) {
@@ -404,7 +386,7 @@ public class MTrack {
     public void recEOT() {
         MEvent e = makeEvent();
         e.setEOT();
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recGate(double gate) {
@@ -420,7 +402,7 @@ public class MTrack {
     public void recForm(int form, int sub) {
         MEvent e = makeEvent();
         e.setForm(form, sub);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recEnvelope(int env, int attack, ArrayList<Integer> times,
@@ -430,148 +412,165 @@ public class MTrack {
             e.setEnvelope1Atk(attack);
         else
             e.setEnvelope2Atk(attack);
-        pushEvent(e);
+        mEvents.add(e);
         for (int i = 0, pts = times.size(); i < pts; i++) {
             e = makeEvent();
             if (env == 1)
                 e.setEnvelope1Point(times.get(i), levels.get(i));
             else
                 e.setEnvelope2Point(times.get(i), levels.get(i));
-            pushEvent(e);
+            mEvents.add(e);
         }
         e = makeEvent();
         if (env == 1)
             e.setEnvelope1Rel(release);
         else
             e.setEnvelope2Rel(release);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recNoiseFreq(int freq) {
         MEvent e = makeEvent();
         e.setNoiseFreq(freq);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recPWM(int pwm) {
         MEvent e = makeEvent();
         e.setPWM(pwm);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recPan(int pan) {
         MEvent e = makeEvent();
         e.setPan(pan);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recFormant(int vowel) {
         MEvent e = makeEvent();
         e.setFormant(vowel);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recDetune(int d) {
         MEvent e = makeEvent();
         e.setDetune(d);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recLFO(int depth, int width, int form, int subform, int delay,
                        int time, int target) {
         MEvent e = makeEvent();
         e.setLFOFMSF(form, subform);
-        pushEvent(e);
+        mEvents.add(e);
         e = makeEvent();
         e.setLFODPWD(depth, width);
-        pushEvent(e);
+        mEvents.add(e);
         e = makeEvent();
         e.setLFODLTM(delay, time);
-        pushEvent(e);
+        mEvents.add(e);
         e = makeEvent();
         e.setLFOTarget(target);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recLPF(int swt, int amt, int frq, int res) {
         MEvent e = makeEvent();
         e.setLPFSWTAMT(swt, amt);
-        pushEvent(e);
+        mEvents.add(e);
         e = makeEvent();
         e.setLPFFRQRES(frq, res);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recVolMode(int m) {
         MEvent e = makeEvent();
         e.setVolMode(m);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recInput(int sens, int pipe) {
         MEvent e = makeEvent();
         e.setInput(sens, pipe);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recOutput(int mode, int pipe) {
         MEvent e = makeEvent();
         e.setOutput(mode, pipe);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recExpression(int ex) {
         MEvent e = makeEvent();
         e.setExpression(ex);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recRing(int sens, int pipe) {
         MEvent e = makeEvent();
         e.setRing(sens, pipe);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recSync(int mode, int pipe) {
         MEvent e = makeEvent();
         e.setSync(mode, pipe);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recClose() {
         MEvent e = makeEvent();
         e.setClose();
-        pushEvent(e);
+        mEvents.add(e);
+        sortEvents();
+    }
+
+    private void sortEvents() {
+        Collections.sort(mEvents, new Comparator<MEvent>() {
+            @Override
+            public int compare(MEvent e1, MEvent e2) {
+                long tick1 = e1.tick, tick2 = e2.tick;
+                return tick1 > tick2 ? 1 : tick1 == tick2 ? 0 : -1;
+            }
+        });
+        long preTick = 0, tick;
+        for (int i = 0, len = mEvents.size(); i < len; i++) {
+            MEvent ev = mEvents.get(i);
+            ev.delta = (int) ((tick = ev.tick) - preTick);
+            preTick = tick;
+        }
     }
 
     public void recPortamento(int depth, int len) {
         MEvent e = makeEvent();
         e.setPortamento(depth, len);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recMidiPort(int mode) {
         MEvent e = makeEvent();
         e.setMidiPort(mode);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recMidiPortRate(int rate) {
         MEvent e = makeEvent();
         e.setMidiPortRate(rate);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recPortBase(int base) {
         MEvent e = makeEvent();
         e.setPortBase(base);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public void recPoly(int voiceCount) {
         MEvent e = makeEvent();
         e.setPoly(voiceCount);
-        pushEvent(e);
+        mEvents.add(e);
         mPolyFound = true;
     }
 
@@ -579,7 +578,7 @@ public class MTrack {
                          int syn) {
         MEvent e = makeEvent();
         e.setHwLfo(w, f, pmd, amd, pms, ams, syn);
-        pushEvent(e);
+        mEvents.add(e);
     }
 
     public int isEnd() {
@@ -604,8 +603,8 @@ public class MTrack {
         MEvent e;
         for (i = 0; i < ni; i++) {
             e = mEvents.get(i);
-            globalTick += e.getDelta();
-            globalSample += e.getDelta() * spt;
+            globalTick += e.delta;
+            globalSample += e.delta * spt;
             switch (e.getStatus()) {
                 case MStatus.TEMPO:
                     spt = calcSpt(e.getTempo());
@@ -622,20 +621,15 @@ public class MTrack {
             if (maxGlobalTick < trackArr.get(j).getRecGlobalTick())
                 maxGlobalTick = trackArr.get(j).getRecGlobalTick();
         }
-        e = makeEvent();
+        e = new MEvent(maxGlobalTick);
         e.setClose();
         recGlobal(maxGlobalTick, e);
         globalSample += (maxGlobalTick - globalTick) * spt;
 
         recRestMSec(3000);
         recEOT();
-        globalSample += 3l * 44100l;
-        mTotalMSec = globalSample * 1000l / 44100l;
-    }
-
-    private double calcSpt(double bpm) {
-        double tps = bpm * 96.0 / 60.0;
-        return 44100.0 / tps;
+        globalSample += 3L * 44100L;
+        mTotalMSec = globalSample * 1000L / 44100L;
     }
 
     private void playTempo(double bpm) {
