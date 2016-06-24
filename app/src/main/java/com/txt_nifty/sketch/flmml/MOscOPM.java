@@ -1,9 +1,3 @@
-/**
- * FM音源ドライバ MOscOPM
- *
- * @author ALOE
- */
-
 package com.txt_nifty.sketch.flmml;
 
 import com.txt_nifty.sketch.flmml.rep.FlMMLUtil;
@@ -97,7 +91,7 @@ public class MOscOPM extends MOscMod {
         boot();
         super_init();
         mFm.Init(OPM_CLOCK, MSequencer.RATE44100);
-        mFm.Reset();
+        //mFm.Reset(); 重い処理、Initで既にやってくれてる
         mFm.SetVolume((int) sComGain);
         setOpMask(15);
         setWaveNo(0);
@@ -191,14 +185,14 @@ public class MOscOPM extends MOscMod {
             SetDT1ML(slottable[s], p[i + 8], p[i + 7]);
             mTl[s] = p[i + 5];
             SetTL(slottable[s], p[i + 5]);
-            SetKSAR(slottable[s], p[i + 6], p[i + 0]);
+            SetKSAR(slottable[s], p[i + 6], p[i]);
             SetDRAMS(slottable[s], p[i + 1], p[i + 10]);
             SetDT2SR(slottable[s], p[i + 9], p[i + 2]);
             SetSLRR(slottable[s], p[i + 4], p[i + 3]);
         }
 
         setVelocity(mVelocity);
-        setOpMask(p[i + 0]);
+        setOpMask(p[i]);
         setWF(p[i + 1]);
         setLFRQ(p[i + 2]);
         setPMD(p[i + 3]);
@@ -250,7 +244,7 @@ public class MOscOPM extends MOscMod {
     }
 
     public void setAMD(int AMD) {
-        mFm.SetReg(0x19, 0x00 | (AMD & 0x7f));
+        mFm.SetReg(0x19, (AMD & 0x7f));
     }
 
     public void setNENFRQ(int NE, int NFQR) {
@@ -345,7 +339,4 @@ public class MOscOPM extends MOscMod {
         return mFm.IsOn(0);
     }
 
-    /*
-     * End Class Definition
-     */
 }

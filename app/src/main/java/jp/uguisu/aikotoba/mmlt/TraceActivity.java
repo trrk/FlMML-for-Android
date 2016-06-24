@@ -96,7 +96,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback {
                     int mae = mPointer[i];
                     while (mPointer[i] < eLen) {
                         MEvent e = events.get(mPointer[i]);
-                        double milli = e.getDelta() * mSpt;
+                        double milli = e.delta * mSpt;
                         if (milli + mEvtime[i] <= now) {
                             mEvtime[i] += milli;
                             switch (e.getStatus()) {

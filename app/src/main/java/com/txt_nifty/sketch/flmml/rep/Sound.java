@@ -55,8 +55,7 @@ public class Sound {
     }
 
     public int getPlaybackMSec() {
-        Log.v("Sound", "now=" + (mTrack.getPlaybackHeadPosition() / 44.1) + "," + mTrack.getPlaybackHeadPosition());
-        return (int) (mTrack.getPlaybackHeadPosition() / 44.1);
+        return (int) ((mTrack.getPlaybackHeadPosition() >> 2) / 11.025);
     }
 
     public void start() {
@@ -158,7 +157,7 @@ public class Sound {
                 } else
                     try {
                         synchronized (this) {
-                            this.wait();//適当に数字入れると参照消えたらスレッド終了するようになる
+                            this.wait();
                         }
                     } catch (InterruptedException e) {
                         // 何もしない

@@ -381,7 +381,7 @@ public class Operator {
 
     private void SetEGRate(int rate) {
         eg_rate_ = rate;
-        eg_count_diff_ = decaytable2[(rate / 4) >> 0] * chip_.GetRatio();
+        eg_count_diff_ = decaytable2[rate / 4] * chip_.GetRatio();
     }
 
     //  EG 計算

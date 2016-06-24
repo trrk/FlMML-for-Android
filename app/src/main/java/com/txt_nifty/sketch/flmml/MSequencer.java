@@ -302,7 +302,8 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     }
 
     public long getNowMSec() {
-        if (true) return mSound.getPlaybackMSec();
+        return mSound.getPlaybackMSec();
+        /*
         long now;
         long tot = getTotalMSec();
         switch (mStatus) {
@@ -313,6 +314,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             default:
                 return mPausedPos;
         }
+        */
     }
 
     public String getNowTimeStr() {

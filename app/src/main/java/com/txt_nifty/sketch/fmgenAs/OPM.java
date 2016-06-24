@@ -56,8 +56,7 @@ public class OPM extends Timer {
 
     // Cのrand()の仕様に合わせる。0～32767の値を返す
     private static int rand() {
-        // http://kb2.adobe.com/jp/cps/228/228622.html
-        return (int) ((Math.random() * (32767 - 0 + 1)) + 0);
+        return (int) (Math.random() * 32768);
     }
 
     private static void BuildLFOTable() {

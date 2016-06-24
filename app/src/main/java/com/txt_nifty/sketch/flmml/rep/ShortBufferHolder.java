@@ -19,7 +19,6 @@ public class ShortBufferHolder implements ConvertedBufferHolder {
             if (v > 1.0) v = 1.0;
             else if (v < -1.0) v = -1.0;
             shortBuf[i] = (short) (Short.MAX_VALUE * v);
-            ;
         }
     }
 
