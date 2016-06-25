@@ -10,7 +10,6 @@ import com.txt_nifty.sketch.flmml.rep.EventDispatcher;
 import com.txt_nifty.sketch.flmml.rep.Sound;
 
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MSequencer extends EventDispatcher implements Sound.Writer {
 
@@ -24,12 +23,14 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     private static int sOutputType = Sound.RECOMMENDED_ENCODING;
     private final int mMultiple;
     private final BufferingRunnable mBufferingRunnable;
-    private final AtomicBoolean mBuffStop = new AtomicBoolean(true);
     private final double[][] mDoubleBuffer;
-    public Callback onSignal = null;
-    private Sound mSound;
-    private ArrayList<MTrack> mTrackArr;
-    private MSignal[] mSignalArr;
+    private final ArrayList<MTrack> mTrackArr;
+    private final MSignal[] mSignalArr; //同期してません
+    private final Runnable mRestTimer;
+    private final Handler mHandler;
+    public volatile Callback onSignal = null;
+    private volatile boolean mBuffStop;
+    private volatile Sound mSound;
     private volatile ConvertedBufferHolder[] mBufferHolder;
     private int mSignalPtr;
     private volatile int mPlaySide;
@@ -37,11 +38,9 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     private volatile boolean mBufferCompleted;
     private volatile long mPausedPos;
     private int mSignalInterval;
-    private long mGlobalTick;
+    private long mGlobalTick; //同期してません
     private volatile long mStartTime;
-    private Runnable mRestTimer;
-    private int mStatus;
-    private Handler mHandler;
+    private volatile int mStatus;
 
     MSequencer() {
         this(32);
@@ -86,6 +85,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         };
         stop();
         mBufferingRunnable = new BufferingRunnable();
+        mBuffStop = true;
         Thread thread = new Thread(mBufferingRunnable, "MSequencer-Buffering");
         thread.setDaemon(true);
         thread.start();
@@ -139,6 +139,9 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         mSound.stop();
         mStatus = STATUS_STOP;
         mPausedPos = 0;
+        synchronized (mTrackArr) {
+            mBuffStop = true;
+        }
     }
 
     public void pause() {
@@ -161,10 +164,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     }
 
     public void disconnectAll() {
-        if (mTrackArr.size() != 0)
-            synchronized (mBuffStop) {
-                mTrackArr = new ArrayList<>();
-            }
+        mTrackArr.clear();
         mStatus = STATUS_STOP;
     }
 
@@ -207,7 +207,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
 
     private void processStart() {
         mBufferCompleted = false;
-        mBuffStop.set(false);
+        mBuffStop = false;
         synchronized (mBufferingRunnable) {
             mBufferingRunnable.notify();
         }
@@ -215,10 +215,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
 
     private void processAll() {
         int sLen = MSequencer.BUFFER_SIZE * mMultiple;
-        ArrayList<MTrack> tracks;
-        synchronized (mBuffStop) {
-            tracks = mTrackArr;
-        }
+        ArrayList<MTrack> tracks = mTrackArr;
         int nLen = tracks.size();
         double[] buffer = mDoubleBuffer[1 - mPlaySide];
         for (int i = sLen * 2 - 1; i >= 0; i--) {
@@ -230,15 +227,10 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             track.onSampleData(buffer, 0, sLen, mSignalArr[mSignalPtr]);
         }*/
         for (int processTrack = MTrack.FIRST_TRACK; processTrack < nLen; processTrack++) {
-            synchronized (mBuffStop) {
-                if (mTrackArr != tracks)
-                    return;
-                MTrack track = tracks.get(processTrack);
-                track.onSampleData(buffer, 0, sLen);
-                if (mStatus == STATUS_BUFFERING)
-                    dispatchEvent(new MMLEvent(MMLEvent.BUFFERING, 0, 0,
-                            (processTrack + 2) * 100 / (nLen + 1)));
-            }
+            if (mStatus == STATUS_STOP) return;
+            tracks.get(processTrack).onSampleData(buffer, 0, sLen);
+            if (mStatus == STATUS_BUFFERING)
+                dispatchEvent(new MMLEvent(MMLEvent.BUFFERING, 0, 0, (processTrack + 2) * 100 / (nLen + 1)));
         }
         mBufferHolder[1 - mPlaySide].convertAndSet(buffer);
 
@@ -343,23 +335,28 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         public void run() {
             MSequencer m = MSequencer.this;
             while (true) {
-                if (m.mBuffStop.get())
+                if (mBuffStop)
                     synchronized (this) {
                         try {
                             this.wait();
                             if (rewrite) {
                                 rewrite = false;
-                                m.mBufferHolder[0].convertAndSet(m.mDoubleBuffer[0]);
-                                m.mBufferHolder[1].convertAndSet(m.mDoubleBuffer[1]);
+                                mBufferHolder[0].convertAndSet(mDoubleBuffer[0]);
+                                mBufferHolder[1].convertAndSet(mDoubleBuffer[1]);
                             }
                         } catch (InterruptedException e) {
                             // 何もしない
                         }
                     }
-                if (m.mBuffStop.compareAndSet(false, true))
-                    m.processAll();
+                synchronized (mTrackArr) {
+                    if (!mBuffStop) {
+                        mBuffStop = true;
+                        m.processAll();
+                    }
+                }
             }
             //Log.v("BufferingThread", "Thread finish.");
         }
+
     }
 }

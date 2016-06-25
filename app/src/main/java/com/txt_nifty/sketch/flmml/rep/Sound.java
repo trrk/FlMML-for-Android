@@ -27,7 +27,7 @@ public class Sound {
     }
 
     private final WriteRunnable mWriteRunnable;
-    private AudioTrack mTrack;
+    private final AudioTrack mTrack;
     private int mVolume = 127;
 
     public Sound(int format, Writer w) {
@@ -35,7 +35,6 @@ public class Sound {
         mWriteRunnable = new WriteRunnable(w);
         new Thread(mWriteRunnable, "WaveWriter").start();
     }
-
 
     public Sound(Writer w) {
         this(RECOMMENDED_ENCODING, w);
@@ -119,7 +118,9 @@ public class Sound {
 
         public void stop() {
             Log.v("Sound-Thread", "stopReq");
-            stopReq = true;
+            synchronized (this) {
+                stopReq = true;
+            }
         }
 
         public void pause() {
@@ -142,7 +143,6 @@ public class Sound {
             while (wait) {
                 if (running) {
                     synchronized (this) {
-                        writer.onSampleData(mTrack);
                         if (stopReq) {
                             Log.v("Sound-Thread", "stop");
                             mTrack.stop();
@@ -152,7 +152,8 @@ public class Sound {
                             Log.v("Sound-Thread", "pause");
                             mTrack.pause();
                             running = false;
-                        }
+                        } else
+                            writer.onSampleData(mTrack);
                     }
                 } else
                     try {
