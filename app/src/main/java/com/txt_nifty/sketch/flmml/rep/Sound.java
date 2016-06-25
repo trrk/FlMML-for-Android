@@ -55,7 +55,7 @@ public class Sound {
     }
 
     public int getPlaybackMSec() {
-        return (int) ((mTrack.getPlaybackHeadPosition() >> 2) / 11.025);
+        return (int) ((mTrack.getPlaybackHeadPosition() >>> 2) / 11.025);
     }
 
     public void start() {
