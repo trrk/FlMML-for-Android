@@ -28,6 +28,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     private final MSignal[] mSignalArr; //同期してません
     private final Runnable mRestTimer;
     private final Handler mHandler;
+    private final Object mBufferLock = new Object();
     public volatile Callback onSignal = null;
     private volatile boolean mBuffStop;
     private volatile Sound mSound;
@@ -48,9 +49,6 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
 
     MSequencer(int multiple) {
         mMultiple = multiple;
-        MChannel.boot(MSequencer.BUFFER_SIZE * mMultiple);
-        MOscillator.boot();
-        MEnvelope.boot();
         mTrackArr = new ArrayList<>();
         mSignalArr = new MSignal[3];
         for (int i = 0; i < mSignalArr.length; i++) {
@@ -118,7 +116,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             stop();
             prepareSound(false);
             mGlobalTick = 0;
-            for (int i = 0; i < mTrackArr.size(); i++) {
+            for (int i = 0, len = mTrackArr.size(); i < len; i++) {
                 mTrackArr.get(i).seekTop();
             }
             mStatus = STATUS_BUFFERING;
@@ -136,12 +134,9 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
 
     public void stop() {
         mHandler.removeCallbacks(mRestTimer);
-        mSound.stop();
         mStatus = STATUS_STOP;
+        mSound.stop();
         mPausedPos = 0;
-        synchronized (mTrackArr) {
-            mBuffStop = true;
-        }
     }
 
     public void pause() {
@@ -164,6 +159,9 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     }
 
     public void disconnectAll() {
+        synchronized (mTrackArr) { //バッファリングが止まるのを待つ
+            mBuffStop = true;
+        }
         mTrackArr.clear();
         mStatus = STATUS_STOP;
     }
@@ -223,7 +221,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         }
         /*
         if (nLen > 0) {
-            MTrack track = mTrackArr.get(MTrack.TEMPO_TRACK); //マルチスレッド注意
+            MTrack track = mTrackArr.get(MTrack.TEMPO_TRACK);
             track.onSampleData(buffer, 0, sLen, mSignalArr[mSignalPtr]);
         }*/
         for (int processTrack = MTrack.FIRST_TRACK; processTrack < nLen; processTrack++) {
@@ -234,31 +232,35 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         }
         mBufferHolder[1 - mPlaySide].convertAndSet(buffer);
 
-        mBufferCompleted = true;
-        if (mStatus == STATUS_BUFFERING) {
-            mStatus = STATUS_PLAY;
-            mPlaySide = 1 - mPlaySide;
-            mPlaySize = 0;
-            processStart();
-            mSound.start();
-            mStartTime = System.currentTimeMillis();
-            long totl = getTotalMSec();
-            long rest = (totl > mPausedPos) ? (totl - mPausedPos) : 0;
-            mHandler.postDelayed(mRestTimer, rest);
+        synchronized (mBufferLock) {
+            mBufferCompleted = true;
+            if (mStatus == STATUS_BUFFERING) {
+                mStatus = STATUS_PLAY;
+                mPlaySide = 1 - mPlaySide;
+                mPlaySize = 0;
+                processStart();
+                mSound.start();
+                mStartTime = System.currentTimeMillis();
+                long totl = getTotalMSec();
+                long rest = (totl > mPausedPos) ? (totl - mPausedPos) : 0;
+                mHandler.postDelayed(mRestTimer, rest);
+            }
         }
     }
 
     public void onSampleData(AudioTrack track) {
         if (mPlaySize >= mMultiple) {
-            if (mBufferCompleted) {
-                // バッファ完成済みの場合
-                mPlaySide = 1 - mPlaySide;
-                mPlaySize = 0;
-                processStart();
-            } else {
-                //バッファが未完成の場合
-                reqBuffering();
-                return;
+            synchronized (mBufferLock) {
+                if (mBufferCompleted) {
+                    // バッファ完成済みの場合
+                    mPlaySide = 1 - mPlaySide;
+                    mPlaySize = 0;
+                    processStart();
+                } else {
+                    //バッファが未完成の場合
+                    reqBuffering();
+                    return;
+                }
             }
             if (mStatus == STATUS_LAST) {
                 Log.v("MSequncer", "STATUS_LAST");
@@ -273,7 +275,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         int len = BUFFER_SIZE << 1;
         int written = bufholder.writeTo(track, base, len);
         if (written < len) {
-            //実際の再生を開始していないとき、AudioTrackのバッファがたまった
+            //AudioTrackのバッファがたまった
             mSound.startPlaying();
             bufholder.writeTo(track, base + written, len - written);
         }
@@ -333,6 +335,9 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
 
         @Override
         public void run() {
+            MChannel.boot(MSequencer.BUFFER_SIZE * mMultiple);
+            MOscillator.boot();
+            MEnvelope.boot();
             MSequencer m = MSequencer.this;
             while (true) {
                 if (mBuffStop)

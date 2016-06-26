@@ -88,8 +88,7 @@ public class Sound {
     }
 
     public void release() {
-        mWriteRunnable.stopThread();
-        mTrack.release();
+        mWriteRunnable.finish();
     }
 
     public interface Writer {
@@ -107,8 +106,9 @@ public class Sound {
             writer = w;
         }
 
-        public void stopThread() {
-            Log.v("Sound-Thread", "stopThread");
+        public void finish() {
+            Log.v("Sound-Thread", "finish");
+            running = false;
             wait = false;
             synchronized (this) {
                 this.notifyAll();
@@ -120,7 +120,6 @@ public class Sound {
             running = false;
             synchronized (this) {
                 mTrack.stop();
-                mTrack.flush();
             }
             Log.v("Sound-Thread", "stop");
         }
@@ -131,6 +130,7 @@ public class Sound {
         }
 
         public void start() {
+            if (running) return;
             Log.v("Sound-Thread", "start");
             synchronized (this) {
                 pauseReq = false;
@@ -158,6 +158,7 @@ public class Sound {
                         }
                 }
             }
+            mTrack.release();
             Log.v("Sound-Thread", "finish loop");
         }
     }
