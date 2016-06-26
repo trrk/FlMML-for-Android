@@ -101,7 +101,6 @@ public class Sound {
         Writer writer;
         private volatile boolean wait = true;
         private volatile boolean running = false;
-        private volatile boolean stopReq = false;
         private volatile boolean pauseReq = false;
 
         WriteRunnable(Writer w) {
@@ -118,9 +117,12 @@ public class Sound {
 
         public void stop() {
             Log.v("Sound-Thread", "stopReq");
+            running = false;
             synchronized (this) {
-                stopReq = true;
+                mTrack.stop();
+                mTrack.flush();
             }
+            Log.v("Sound-Thread", "stop");
         }
 
         public void pause() {
@@ -132,7 +134,6 @@ public class Sound {
             Log.v("Sound-Thread", "start");
             synchronized (this) {
                 pauseReq = false;
-                stopReq = false;
                 running = true;
                 this.notifyAll();
             }
@@ -140,29 +141,22 @@ public class Sound {
 
         @Override
         public void run() {
-            while (wait) {
-                if (running) {
-                    synchronized (this) {
-                        if (stopReq) {
-                            Log.v("Sound-Thread", "stop");
-                            mTrack.stop();
-                            mTrack.flush();
-                            running = false;
-                        } else if (pauseReq) {
+            synchronized (this) {
+                while (wait) {
+                    if (running) {
+                        if (pauseReq) {
                             Log.v("Sound-Thread", "pause");
                             mTrack.pause();
                             running = false;
                         } else
                             writer.onSampleData(mTrack);
-                    }
-                } else
-                    try {
-                        synchronized (this) {
+                    } else
+                        try {
                             this.wait();
+                        } catch (InterruptedException e) {
+                            // 何もしない
                         }
-                    } catch (InterruptedException e) {
-                        // 何もしない
-                    }
+                }
             }
             Log.v("Sound-Thread", "finish loop");
         }
