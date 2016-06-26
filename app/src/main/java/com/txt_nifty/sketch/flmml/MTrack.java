@@ -350,23 +350,10 @@ public class MTrack {
 
     //private void insertEvent(MEvent e) {}
     //遅いので消し、recClose()でtickをもとにソートとdeltaのセットを行うように
-    //なお、TEMPO_TRACKはrecClose()を呼ばれないので注意
+    //なお、TEMPO_TRACKはrecClose()を呼ばれないのでconductでソートしている
 
+    //recGlobal()も(そんなに多く呼ばれないが)重いので後でソートするように変更
     private void recGlobal(long globalTick, MEvent e) {
-        int n = mEvents.size();
-        long preGlobalTick = 0;
-        for (int i = 0; i < n; i++) {
-            MEvent en = mEvents.get(i);
-            long nextTick = preGlobalTick + en.delta;
-            if (nextTick > globalTick || (nextTick == globalTick && en.getStatus() != MStatus.TEMPO)) {
-                en.delta = (int) (nextTick - globalTick);
-                e.delta = (int) (globalTick - preGlobalTick);
-                mEvents.add(i, e);
-                return;
-            }
-            preGlobalTick = nextTick;
-        }
-        e.delta = (int) (globalTick - preGlobalTick);
         mEvents.add(e);
     }
 
@@ -594,6 +581,7 @@ public class MTrack {
     }
 
     public void conduct(ArrayList<MTrack> trackArr) {
+        sortEvents();
         int ni = mEvents.size();
         int nj = trackArr.size();
         long globalTick = 0;
