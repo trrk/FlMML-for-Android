@@ -6,25 +6,16 @@
         android:id="@+id/input"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@+id/warningsc"
+        android:layout_above="@+id/warnings"
         android:gravity="top|left"
         android:text="L8 O5CDEFGAB&lt;C" />
 
-    <ScrollView
-        android:id="@+id/warningsc"
+    <ListView
+        android:id="@+id/warnings"
         android:layout_width="match_parent"
         android:layout_height="90dp"
         android:layout_above="@+id/buttons"
-        android:fillViewport="true">
-
-        <TextView
-            android:id="@+id/warnings"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:longClickable="true"
-            android:text="\n [Long tap] Download from URL" />
-
-    </ScrollView>
+        android:divider="@null" />
 
     <LinearLayout
         android:id="@+id/buttons"
