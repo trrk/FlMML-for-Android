@@ -116,8 +116,10 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             stop();
             prepareSound(false);
             mGlobalTick = 0;
-            for (int i = 0, len = mTrackArr.size(); i < len; i++) {
-                mTrackArr.get(i).seekTop();
+            synchronized (mTrackArr) {
+                for (int i = 0, len = mTrackArr.size(); i < len; i++) {
+                    mTrackArr.get(i).seekTop();
+                }
             }
             mStatus = STATUS_BUFFERING;
             mPlaySize = mMultiple;
@@ -166,14 +168,16 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     public void disconnectAll() {
         synchronized (mTrackArr) { //バッファリングが止まるのを待つ
             mBuffStop = true;
+            mTrackArr.clear();
         }
-        mTrackArr.clear();
         mStatus = STATUS_STOP;
     }
 
     public void connect(MTrack track) {
         track.mSignalInterval = mSignalInterval;
-        mTrackArr.add(track);
+        synchronized (mTrackArr) {
+            mTrackArr.add(track);
+        }
     }
 
     public long getGlobalTick() {
@@ -333,12 +337,25 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         return sb.toString();
     }
 
+    public void release() {
+        mSound.release();
+        mBufferingRunnable.finish();
+    }
+
     private class BufferingRunnable implements Runnable {
 
         private volatile boolean rewrite = false;
+        private volatile boolean wait = true;
 
         public void rewriteReq() {
             rewrite = true;
+            synchronized (this) {
+                this.notify();
+            }
+        }
+
+        public void finish() {
+            wait = false;
             synchronized (this) {
                 this.notify();
             }
@@ -350,7 +367,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             MOscillator.boot();
             MEnvelope.boot();
             MSequencer m = MSequencer.this;
-            while (true) {
+            while (wait) {
                 if (mBuffStop)
                     synchronized (this) {
                         try {
@@ -371,7 +388,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
                     }
                 }
             }
-            //Log.v("BufferingThread", "Thread finish.");
+            Log.v("BufferingThread", "finish");
         }
 
     }

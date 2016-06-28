@@ -107,7 +107,7 @@ public class Sound {
         }
 
         public void finish() {
-            Log.v("Sound-Thread", "finish");
+            Log.v("Sound-Thread", "finishReq");
             running = false;
             wait = false;
             synchronized (this) {
@@ -159,7 +159,7 @@ public class Sound {
                 }
             }
             mTrack.release();
-            Log.v("Sound-Thread", "finish loop");
+            Log.v("Sound-Thread", "finish");
         }
     }
 

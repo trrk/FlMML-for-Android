@@ -20,7 +20,7 @@ public class MTrack {
     private long mGlobalTick; //int?
     private int mSignalCnt;
     private double mLfoWidth;
-    private long mTotalMSec;
+    private volatile long mTotalMSec;
     private long mChordBegin;
     private long mChordEnd;
     private boolean mChordMode;

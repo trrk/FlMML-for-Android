@@ -165,6 +165,10 @@ public class FlMML {
         return mMml;
     }
 
+    public void release() {
+        mMml.release();
+    }
+
     public static class Listener {
         public void onTextChanged(String text) {
 

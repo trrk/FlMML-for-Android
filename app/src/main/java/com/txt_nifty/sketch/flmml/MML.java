@@ -1582,4 +1582,8 @@ public class MML extends EventDispatcher {
     public ArrayList<MTrack> getRawTracks() {
         return mTracks;
     }
+
+    public void release() {
+        mSequencer.release();
+    }
 }
