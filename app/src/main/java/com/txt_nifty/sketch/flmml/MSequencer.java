@@ -120,6 +120,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
                 mTrackArr.get(i).seekTop();
             }
             mStatus = STATUS_BUFFERING;
+            mPlaySize = mMultiple;
             processStart();
         } else {
             mStatus = STATUS_PLAY;
