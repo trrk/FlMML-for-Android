@@ -133,17 +133,21 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     }
 
     public void stop() {
-        mHandler.removeCallbacks(mRestTimer);
-        mStatus = STATUS_STOP;
+        synchronized (mBufferLock) {
+            mHandler.removeCallbacks(mRestTimer);
+            mStatus = STATUS_STOP;
+        }
         mSound.stop();
         mPausedPos = 0;
     }
 
     public void pause() {
-        mHandler.removeCallbacks(mRestTimer);
+        synchronized (mBufferLock) {
+            mHandler.removeCallbacks(mRestTimer);
+            mStatus = STATUS_PAUSE;
+        }
         mSound.pause();
         mPausedPos = getNowMSec();
-        mStatus = STATUS_PAUSE;
     }
 
     public void setMasterVolume(int i) {
@@ -234,6 +238,12 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
 
         synchronized (mBufferLock) {
             mBufferCompleted = true;
+            if (mStatus == STATUS_PAUSE && mPlaySize >= mMultiple) {
+                //バッファリング中に一時停止された
+                mPlaySide = 1 - mPlaySide;
+                mPlaySize = 0;
+                processStart();
+            }
             if (mStatus == STATUS_BUFFERING) {
                 mStatus = STATUS_PLAY;
                 mPlaySide = 1 - mPlaySide;
