@@ -307,7 +307,11 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     }
 
     public long getTotalMSec() {
-        return mTrackArr.get(MTrack.TEMPO_TRACK).getTotalMSec();
+        synchronized (mTrackArr) {
+            if (mTrackArr.size() <= MTrack.TEMPO_TRACK)
+                return 0;
+            return mTrackArr.get(MTrack.TEMPO_TRACK).getTotalMSec();
+        }
     }
 
     public long getNowMSec() {
