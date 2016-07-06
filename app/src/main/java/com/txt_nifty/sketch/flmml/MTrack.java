@@ -508,10 +508,10 @@ public class MTrack {
     }
 
     public void recClose() {
+        sortEvents();
         MEvent e = makeEvent();
         e.setClose();
         mEvents.add(e);
-        sortEvents();
     }
 
     private void sortEvents() {
@@ -604,14 +604,16 @@ public class MTrack {
                     break;
             }
         }
-        long maxGlobalTick = 0;// int?
+        long maxGlobalTick = 0;
         for (j = FIRST_TRACK; j < nj; j++) {
-            if (maxGlobalTick < trackArr.get(j).getRecGlobalTick())
-                maxGlobalTick = trackArr.get(j).getRecGlobalTick();
+            long tick = trackArr.get(j).getRecGlobalTick();
+            if (maxGlobalTick < tick)
+                maxGlobalTick = tick;
         }
         e = new MEvent(maxGlobalTick);
         e.setClose();
         recGlobal(maxGlobalTick, e);
+        sortEvents();
         globalSample += (maxGlobalTick - globalTick) * spt;
 
         recRestMSec(3000);

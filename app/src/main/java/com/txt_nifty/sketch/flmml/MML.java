@@ -1483,7 +1483,9 @@ public class MML extends EventDispatcher {
         }
 
         // conduct
+        l = System.currentTimeMillis();
         mTracks.get(MTrack.TEMPO_TRACK).conduct(mTracks);
+        Log.v("MML.time", "conduct:" + (System.currentTimeMillis() - l) + "ms");
 
         // post process
         l = System.currentTimeMillis();

@@ -119,6 +119,11 @@ public class Sound {
             Log.v("Sound-Thread", "stopReq");
             running = false;
             synchronized (this) {
+                boolean flush = mTrack.getPlayState() != AudioTrack.PLAYSTATE_STOPPED;
+                mTrack.pause();
+                if (flush)
+                    mTrack.flush();
+                mTrack.play();
                 mTrack.stop();
             }
             Log.v("Sound-Thread", "stop");
@@ -130,7 +135,7 @@ public class Sound {
         }
 
         public void start() {
-            if (running) return;
+            if (!pauseReq && running) return;
             Log.v("Sound-Thread", "start");
             synchronized (this) {
                 pauseReq = false;

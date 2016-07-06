@@ -37,10 +37,9 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     private volatile int mPlaySide;
     private volatile int mPlaySize;
     private volatile boolean mBufferCompleted;
-    private volatile long mPausedPos;
+    private volatile long mOutputChangedPos;
     private int mSignalInterval;
     private long mGlobalTick; //同期してません
-    private volatile long mStartTime;
     private volatile int mStatus;
 
     MSequencer() {
@@ -71,7 +70,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         for (int i = 0; i < 2; i++) {
             mBufferHolder[i] = Sound.makeBufferHolder(mSound, bufsize);
         }
-        mPausedPos = 0;
+        mOutputChangedPos = 0;
         setMasterVolume(100);
         mSignalInterval = 96;
         mHandler = new Handler();
@@ -97,17 +96,18 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         return sOutputType;
     }
 
-    private void prepareSound(boolean rewrite) {
+    private void prepareSound(boolean resume) {
         if (mSound.getOutputFormat() != sOutputType) {
-            mSound.release();
-            int vol = mSound.getVolume();
-            mSound = new Sound(sOutputType, this);
-            mSound.setVolume(vol);
+            Sound newsound = new Sound(sOutputType, this);
+            newsound.setVolume(mSound.getVolume());
             for (int i = 0, bufsize = MSequencer.BUFFER_SIZE * mMultiple * 2; i < 2; i++) {
-                mBufferHolder[i] = Sound.makeBufferHolder(mSound, bufsize);
+                mBufferHolder[i] = Sound.makeBufferHolder(newsound, bufsize);
             }
-            if (rewrite)
+            if (resume) {
+                mOutputChangedPos = getNowMSec();
                 mBufferingRunnable.rewriteReq();
+            }
+            mSound = newsound;
         }
     }
 
@@ -128,11 +128,13 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             mStatus = STATUS_PLAY;
             prepareSound(true);
             mSound.start();
-            mStartTime = System.currentTimeMillis();
-            long totl = getTotalMSec();
-            long rest = (totl > mPausedPos) ? (totl - mPausedPos) : 0;
-            mHandler.postDelayed(mRestTimer, rest);
+            putRestTimer();
         }
+    }
+
+    private void putRestTimer() {
+        long totl = getTotalMSec(), now = getNowMSec();
+        mHandler.postDelayed(mRestTimer, now < totl ? totl - now : 0);
     }
 
     public void stop() {
@@ -141,7 +143,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             mStatus = STATUS_STOP;
         }
         mSound.stop();
-        mPausedPos = 0;
+        mOutputChangedPos = 0;
     }
 
     public void pause() {
@@ -150,7 +152,6 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             mStatus = STATUS_PAUSE;
         }
         mSound.pause();
-        mPausedPos = getNowMSec();
     }
 
     public void setMasterVolume(int i) {
@@ -228,11 +229,10 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         for (int i = sLen * 2 - 1; i >= 0; i--) {
             buffer[i] = 0;
         }
-        /*
         if (nLen > 0) {
             MTrack track = mTrackArr.get(MTrack.TEMPO_TRACK);
             track.onSampleData(buffer, 0, sLen, mSignalArr[mSignalPtr]);
-        }*/
+        }
         for (int processTrack = MTrack.FIRST_TRACK; processTrack < nLen; processTrack++) {
             if (mStatus == STATUS_STOP) return;
             tracks.get(processTrack).onSampleData(buffer, 0, sLen);
@@ -255,10 +255,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
                 mPlaySize = 0;
                 processStart();
                 mSound.start();
-                mStartTime = System.currentTimeMillis();
-                long totl = getTotalMSec();
-                long rest = (totl > mPausedPos) ? (totl - mPausedPos) : 0;
-                mHandler.postDelayed(mRestTimer, rest);
+                putRestTimer();
             }
         }
     }
@@ -307,25 +304,12 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     }
 
     public long getTotalMSec() {
-        if (mTrackArr.size() <= MTrack.TEMPO_TRACK)
-            return 0;
-        return mTrackArr.get(MTrack.TEMPO_TRACK).getTotalMSec();
+        return mTrackArr.size() <= MTrack.TEMPO_TRACK ? 0 : mTrackArr.get(MTrack.TEMPO_TRACK).getTotalMSec();
     }
 
     public long getNowMSec() {
-        return mSound.getPlaybackMSec();
-        /*
-        long now;
-        long tot = getTotalMSec();
-        switch (mStatus) {
-            case STATUS_PLAY:
-            case STATUS_LAST:
-                now = System.currentTimeMillis() - mStartTime + mPausedPos;
-                return (now < tot) ? now : tot;
-            default:
-                return mPausedPos;
-        }
-        */
+        long now = mSound.getPlaybackMSec() + mOutputChangedPos, tot = getTotalMSec();
+        return now < tot ? now : tot;
     }
 
     public String getNowTimeStr() {
