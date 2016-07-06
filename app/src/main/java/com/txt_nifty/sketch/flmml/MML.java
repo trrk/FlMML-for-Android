@@ -70,14 +70,6 @@ public class MML extends EventDispatcher {
         return str.replaceAll("[ 　\n\r\t\f]+", "");
     }
 
-    public void setonSignal(Callback func) {
-        mSequencer.onSignal = func;
-    }
-
-    public void setSignalIntrerval(int interval) {
-        mSequencer.setSignalInterval(interval);
-    }
-
     public String getWarnings() {
         return mWarning.toString();
     }
@@ -1526,10 +1518,6 @@ public class MML extends EventDispatcher {
 
     public void setMasterVolume(int vol) {
         mSequencer.setMasterVolume(vol);
-    }
-
-    public long getGlobalTick() {
-        return mSequencer.getGlobalTick();
     }
 
     public boolean isPlaying() {

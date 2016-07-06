@@ -4,7 +4,6 @@ import android.media.AudioTrack;
 import android.os.Handler;
 import android.util.Log;
 
-import com.txt_nifty.sketch.flmml.rep.Callback;
 import com.txt_nifty.sketch.flmml.rep.ConvertedBufferHolder;
 import com.txt_nifty.sketch.flmml.rep.EventDispatcher;
 import com.txt_nifty.sketch.flmml.rep.Sound;
@@ -25,21 +24,16 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     private final BufferingRunnable mBufferingRunnable;
     private final double[][] mDoubleBuffer;
     private final ArrayList<MTrack> mTrackArr;
-    private final MSignal[] mSignalArr; //同期してません
     private final Runnable mRestTimer;
     private final Handler mHandler;
     private final Object mBufferLock = new Object();
-    public volatile Callback onSignal = null;
     private volatile boolean mBuffStop;
     private volatile Sound mSound;
     private volatile ConvertedBufferHolder[] mBufferHolder;
-    private int mSignalPtr;
     private volatile int mPlaySide;
     private volatile int mPlaySize;
     private volatile boolean mBufferCompleted;
     private volatile long mOutputChangedPos;
-    private int mSignalInterval;
-    private long mGlobalTick; //同期してません
     private volatile int mStatus;
 
     MSequencer() {
@@ -49,17 +43,6 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     MSequencer(int multiple) {
         mMultiple = multiple;
         mTrackArr = new ArrayList<>();
-        mSignalArr = new MSignal[3];
-        for (int i = 0; i < mSignalArr.length; i++) {
-            MSignal sig = new MSignal(i);
-            sig.setFunction(new Callback() {
-                public void call(int... a) {
-                    onSignalHandler(a[0], a[1]);
-                }
-            });
-            mSignalArr[i] = sig;
-        }
-        mSignalPtr = 0;
         int bufsize = MSequencer.BUFFER_SIZE * mMultiple * 2;
         mDoubleBuffer = new double[2][bufsize];
         mPlaySide = 1;
@@ -72,7 +55,6 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         }
         mOutputChangedPos = 0;
         setMasterVolume(100);
-        mSignalInterval = 96;
         mHandler = new Handler();
         mRestTimer = new Runnable() {
             @Override
@@ -115,7 +97,6 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         if (mStatus != STATUS_PAUSE) {
             stop();
             prepareSound(false);
-            mGlobalTick = 0;
             synchronized (mTrackArr) {
                 for (int i = 0, len = mTrackArr.size(); i < len; i++) {
                     mTrackArr.get(i).seekTop();
@@ -175,24 +156,9 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
     }
 
     public void connect(MTrack track) {
-        track.mSignalInterval = mSignalInterval;
         synchronized (mTrackArr) {
             mTrackArr.add(track);
         }
-    }
-
-    public long getGlobalTick() {
-        return mGlobalTick;
-    }
-
-    public void setSignalInterval(int interval) {
-        mSignalInterval = interval;
-    }
-
-    private void onSignalHandler(int globalTick, int event) {
-        mGlobalTick = globalTick;
-        if (onSignal != null)
-            onSignal.call(globalTick, event);
     }
 
     private void reqStop() {
@@ -230,8 +196,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             buffer[i] = 0;
         }
         if (nLen > 0) {
-            MTrack track = mTrackArr.get(MTrack.TEMPO_TRACK);
-            track.onSampleData(buffer, 0, sLen, mSignalArr[mSignalPtr]);
+            mTrackArr.get(MTrack.TEMPO_TRACK).onSampleData(buffer, 0, sLen, false);
         }
         for (int processTrack = MTrack.FIRST_TRACK; processTrack < nLen; processTrack++) {
             if (mStatus == STATUS_STOP) return;
@@ -275,11 +240,9 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
                 }
             }
             if (mStatus == STATUS_LAST) {
-                Log.v("MSequncer", "STATUS_LAST");
                 return;
             } else if (mStatus == STATUS_PLAY && mTrackArr.get(MTrack.TEMPO_TRACK).isEnd() != 0) {
                 mStatus = STATUS_LAST;
-                Log.v("MSequncer", "-> STATUS_LAST");
             }
         }
         ConvertedBufferHolder bufholder = mBufferHolder[mPlaySide];
@@ -292,7 +255,6 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             bufholder.writeTo(track, base + written, len - written);
         }
         mPlaySize++;
-        mSignalPtr = (++mSignalPtr) % mSignalArr.length;
     }
 
     public void createPipes(int num) {

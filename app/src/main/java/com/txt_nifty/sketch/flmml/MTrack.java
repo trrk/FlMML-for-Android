@@ -61,19 +61,13 @@ public class MTrack {
     }
 
     public void onSampleData(double[] samples, int start, int end) {
-        onSampleData(samples, start, end, null);
+        onSampleData(samples, start, end, true);
     }
 
-    public void onSampleData(double[] samples, int start, int end, MSignal signal) {
+    public void onSampleData(double[] samples, int start, int end, boolean needsSample) {
         if (isEnd() != 0)
             return;
         int startCnt = mSignalCnt;
-        if (signal != null)
-            signal.reset();
-        // first signal
-        if (mGlobalTick == 0 && signal != null) {
-            signal.add(0, 0, 0);
-        }
         for (int i = start; i < end; ) {
             // exec events
             int exec = 0;
@@ -231,31 +225,13 @@ public class MTrack {
                 if (i + di >= end)
                     di = end - i;
                 mNeedle += di;
-                if (signal == null)
+                if (needsSample)
                     mCh.getSamples(samples, end, i < 0 ? 0 : i, di); // i < 0 ? 0 : i でエラー落ちだけは阻止 当然本家と同じように再生できない
                 i += di;
             } else {
                 break;
             }
-
-            // periodic signal
-            if (signal != null) {
-                mSignalCnt += di;
-                int intervalSample = (int) (mSignalInterval * mSpt);
-                if (intervalSample > 0) {
-                    while (mSignalCnt >= intervalSample) {
-                        mGlobalTick += mSignalInterval;
-                        signal.add(
-                                (int) ((intervalSample - startCnt) * (1000.0 / 44100.0)),
-                                (int) mGlobalTick, 0);
-                        mSignalCnt -= intervalSample;
-                        startCnt = 0;
-                    }
-                }
-            }
         }
-        if (signal != null)
-            signal.terminate();
     }
 
     public void seek(int delta) {
