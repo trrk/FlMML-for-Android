@@ -70,8 +70,15 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
                     .setPositiveButton("取得する", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             mDl = new Downloader();
-                            String url;
-                            mDl.execute(url = et.getText().toString());
+                            String url = et.getText().toString();
+                            //数字ならピコカキコをもってくる
+                            try {
+                                int no = Integer.parseInt(url);
+                                url = "http://dic.nicovideo.jp/mml/" + no;
+                            } catch (NumberFormatException e) {
+                                //数字じゃない→そのまま
+                            }
+                            mDl.execute(url);
                             EditText input = (EditText) findViewById(R.id.input);
                             mWarnAdapter.clear();
                             mWarnAdapter.add("");
