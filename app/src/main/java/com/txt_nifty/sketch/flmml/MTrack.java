@@ -490,7 +490,13 @@ public class MTrack {
             @Override
             public int compare(MEvent e1, MEvent e2) {
                 long tick1 = e1.tick, tick2 = e2.tick;
-                return tick1 > tick2 ? 1 : tick1 == tick2 ? 0 : -1;
+                if (tick1 > tick2)
+                    return 1;
+                else if (tick1 < tick2)
+                    return -1;
+                // (tick1 == tick2)
+                boolean tempo1 = e1.getStatus() == MStatus.TEMPO, tempo2 = e2.getStatus() == MStatus.TEMPO;
+                return tempo1 ^ tempo2 ? tempo1 ? -1 : 1 : 0;
             }
         });
         long preTick = 0, tick;
