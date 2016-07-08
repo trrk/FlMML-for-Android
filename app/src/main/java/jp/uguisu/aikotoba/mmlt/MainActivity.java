@@ -371,8 +371,18 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
         @Override
         public void run() {
-            mFlmml.play(s);
-            mListener.mTextRunnable.set("").run();
+            try {
+                mFlmml.play(s);
+                mListener.mTextRunnable.set("").run();
+            } catch (OutOfMemoryError e) {
+                //メモリ解放
+                mFlmml.play("");
+                mFlmml.stop();
+
+                mPlayButton.setText("Play");
+                buttonPlay = true;
+                mListener.mTextRunnable.set("メモリが足りません!!").run();
+            }
         }
     }
 }
