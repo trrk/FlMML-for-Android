@@ -46,9 +46,16 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     @Override
     public boolean onLongClick(View view) {
-        if (mDl == null)
-            showDialog(1);
-        return true;
+        switch (view.getId()) {
+            case R.id.ppbutton:
+                if (mDl == null)
+                    showDialog(1);
+                return true;
+            case R.id.stopbutton:
+                startActivity(new Intent(this, TraceActivity.class));
+                return true;
+        }
+        return false;
     }
 
     @Override
@@ -124,7 +131,9 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         mPlayButton = (Button) findViewById(R.id.ppbutton);
         mPlayButton.setOnClickListener(this);
         mPlayButton.setOnLongClickListener(this);
-        findViewById(R.id.stopbutton).setOnClickListener(this);
+        View stopbutton = findViewById(R.id.stopbutton);
+        stopbutton.setOnClickListener(this);
+        stopbutton.setOnLongClickListener(this);
         findViewById(R.id.setting).setOnClickListener(this);
         ListView listview = (ListView) findViewById(R.id.warnings);
         mWarnAdapter = new ArrayAdapter<String>(this, R.layout.simple_textview, new ArrayList<>(Arrays.asList("", " Playボタン長押しでURL指定してMMLを読み込めます"))) {
@@ -303,11 +312,30 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
             @Override
             public void run() {
-                String[] s = warnings.split("\n");
-                warnings = null;
                 mWarnAdapter.clear();
-                for (int i = 0; i < s.length; i++)
-                    mWarnAdapter.add(s[i]);
+                if (!warnings.equals("")) {
+                    String[] s = warnings.split("\n");
+                    for (int i = 0, len = s.length; i < len; i++)
+                        mWarnAdapter.add(s[i]);
+                } else {
+                    String title = mFlmml.getMetaTitle();
+                    String artist = mFlmml.getMetaArtist();
+                    String comment = mFlmml.getMetaComment();
+                    String coding = mFlmml.getMetaCoding();
+                    if (!title.equals("")) {
+                        mWarnAdapter.add("-Title-\n" + title);
+                    }
+                    if (!artist.equals("")) {
+                        mWarnAdapter.add("-Artist-\n" + artist);
+                    }
+                    if (!comment.equals("")) {
+                        mWarnAdapter.add("-Comment-\n" + comment);
+                    }
+                    if (!coding.equals("")) {
+                        mWarnAdapter.add("-Coding-\n" + coding);
+                    }
+                }
+                warnings = null;
             }
         }
 
