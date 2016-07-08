@@ -241,7 +241,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             }
             if (mStatus == STATUS_LAST) {
                 return;
-            } else if (mStatus == STATUS_PLAY && mTrackArr.get(MTrack.TEMPO_TRACK).isEnd() != 0) {
+            } else if (mStatus == STATUS_PLAY && mTrackArr.get(MTrack.TEMPO_TRACK).isEnd()) {
                 mStatus = STATUS_LAST;
             }
         }

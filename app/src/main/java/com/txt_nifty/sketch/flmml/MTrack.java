@@ -8,9 +8,8 @@ public class MTrack {
     public static final int TEMPO_TRACK = 0;
     public static final int FIRST_TRACK = 1;
     public static final int DEFAULT_BPM = 120;
-    public int mSignalInterval;
     private double mNeedle;
-    private int mIsEnd;
+    private boolean mIsEnd;
     private IChannel mCh;
     private boolean mPolyFound;
     private int mVolume;
@@ -18,7 +17,6 @@ public class MTrack {
     private int mPointer;
     private int mDelta;
     private long mGlobalTick; //int?
-    private int mSignalCnt;
     private double mLfoWidth;
     private volatile long mTotalMSec;
     private long mChordBegin;
@@ -30,7 +28,7 @@ public class MTrack {
     private double mBpm;
 
     public MTrack() {
-        mIsEnd = 0;
+        mIsEnd = false;
         mCh = new MChannel();
         mNeedle = 0.0;
         mPolyFound = false;
@@ -42,8 +40,6 @@ public class MTrack {
         mPointer = 0;
         mDelta = 0;
         mGlobalTick = 0;
-        mSignalInterval = 96 / 4;
-        mSignalCnt = 0;
         mLfoWidth = 0.0;
         mTotalMSec = 0;
         mChordBegin = 0;
@@ -65,22 +61,21 @@ public class MTrack {
     }
 
     public void onSampleData(double[] samples, int start, int end, boolean needsSample) {
-        if (isEnd() != 0)
+        if (mIsEnd)
             return;
-        int startCnt = mSignalCnt;
         for (int i = start; i < end; ) {
             // exec events
-            int exec = 0;
+            boolean exec;
             int eLen = mEvents.size();
             MEvent e;
             double delta;
             do {
-                exec = 0;
+                exec = false;
                 if (mPointer < eLen) {
                     e = mEvents.get(mPointer);
                     delta = e.delta * mSpt;
                     if (mNeedle >= delta) {
-                        exec = 1;
+                        exec = true;
                         switch (e.getStatus()) {
                             case MStatus.NOTE_ON:
                                 mCh.noteOn(e.getNoteNo(), e.getVelocity());
@@ -204,7 +199,7 @@ public class MTrack {
                                 mCh.close();
                                 break;
                             case MStatus.EOT:
-                                mIsEnd = 1;
+                                mIsEnd = true;
                                 break;
                             case MStatus.NOP:
                                 break;
@@ -215,7 +210,7 @@ public class MTrack {
                         mPointer++;
                     }
                 }
-            } while (exec != 0);
+            } while (exec);
             // create a short wave
             int di;
             if (mPointer < eLen) {
@@ -544,7 +539,7 @@ public class MTrack {
         mEvents.add(e);
     }
 
-    public int isEnd() {
+    public boolean isEnd() {
         return mIsEnd;
     }
 

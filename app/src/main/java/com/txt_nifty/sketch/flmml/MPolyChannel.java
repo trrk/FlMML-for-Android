@@ -65,13 +65,11 @@ public class MPolyChannel implements IChannel {
         int i;
         MChannel vo = null;
 
-        // ボイススロットに空きがあるようだ
-        if (getVoiceCount() <= mVoiceLimit) {
-            for (i = 0; i < mVoiceLen; i++) {
-                if (m_voices[i].isPlaying() == false) {
-                    vo = m_voices[i];
-                    break;
-                }
+        // ボイススロットに空きがあれば取ってくる
+        for (i = 0; i < mVoiceLen; i++) {
+            if (!m_voices[i].isPlaying()) {
+                vo = m_voices[i];
+                break;
             }
         }
         // やっぱ埋まってたので一番古いボイスを探す
