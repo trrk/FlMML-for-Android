@@ -151,6 +151,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     @Override
     protected void onResume() {
         super.onResume();
+        if (mFlmml == null) return;
         if (mFlmml.isPlaying()) {
             buttonPlay = false;
             mListener.mButtonPlayRunnable.ispause = true;
@@ -165,7 +166,8 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     @Override
     protected void onPause() {
         super.onPause();
-        mFlmml.setListener(null);
+        if (mFlmml != null)
+            mFlmml.setListener(null);
     }
 
     public void play() {

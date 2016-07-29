@@ -67,7 +67,17 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
         mBuffStop = true;
         Thread thread = new Thread(mBufferingRunnable, "MSequencer-Buffering");
         thread.setDaemon(true);
-        thread.start();
+        synchronized (mBufferingRunnable) {
+            thread.start();
+            try {
+                // 初期化待ち
+                mBufferingRunnable.wait();
+            } catch (InterruptedException e) {
+                // 何もしない
+            }
+            if (mBufferingRunnable.bootError != null)
+                throw mBufferingRunnable.bootError;
+        }
     }
 
     public static void setOutput(int type) {
@@ -294,6 +304,7 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
 
         private volatile boolean rewrite = false;
         private volatile boolean wait = true;
+        private OutOfMemoryError bootError;
 
         public void rewriteReq() {
             rewrite = true;
@@ -309,11 +320,23 @@ public class MSequencer extends EventDispatcher implements Sound.Writer {
             }
         }
 
+        private synchronized boolean boot() {
+            try {
+                MChannel.boot(MSequencer.BUFFER_SIZE * mMultiple);
+                MOscillator.boot();
+                MEnvelope.boot();
+                return true;
+            } catch (OutOfMemoryError e) {
+                bootError = e;
+                return false;
+            } finally {
+                this.notify();
+            }
+        }
+
         @Override
         public void run() {
-            MChannel.boot(MSequencer.BUFFER_SIZE * mMultiple);
-            MOscillator.boot();
-            MEnvelope.boot();
+            if (!boot()) return;
             MSequencer m = MSequencer.this;
             while (wait) {
                 if (mBuffStop)

@@ -5,7 +5,7 @@ import android.os.Handler;
 import com.txt_nifty.sketch.flmml.rep.Callback;
 
 public class FlMML {
-    private static FlMML sInstance = new FlMML();
+    private static FlMML sInstance;
     private final Handler mHandler;
     private MML mMml;
     private Listener mListener;
@@ -24,7 +24,7 @@ public class FlMML {
     }
 
     public static FlMML getStaticInstance() {
-        return sInstance;
+        return sInstance == null ? sInstance = new FlMML() : sInstance;
     }
 
     public void setListener(Listener l) {
