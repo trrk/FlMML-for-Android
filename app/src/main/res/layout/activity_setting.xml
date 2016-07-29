@@ -5,13 +5,13 @@
 
     <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="出力(次回再生時から反映されます)"
+            android:text="@string/setting_output"
             android:textAppearance="?android:attr/textAppearanceMedium" />
 
         <RadioGroup
@@ -24,20 +24,20 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:enabled="false"
-                android:text="8bit (非推奨)"
+                android:text="@string/output_8bit"
                 android:visibility="gone" />
 
             <RadioButton
                 android:id="@+id/type16"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="16bit" />
+                android:text="@string/output_16bit" />
 
             <RadioButton
                 android:id="@+id/type32"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="32bit-float (Flash版と同じ・Lollipop以降のみ対応)" />
+                android:text="@string/output_float" />
 
 
         </RadioGroup>
@@ -46,7 +46,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="15dp"
-            android:text="このアプリのほとんどは修正BSDライセンスで公開されているFlMMLのプログラムを参考に作られています。"
+            android:text="@string/thanks"
             android:textAppearance="?android:attr/textAppearanceMedium" />
 
         <TextView

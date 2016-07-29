@@ -8,7 +8,7 @@
         android:layout_height="match_parent"
         android:layout_above="@+id/warnings"
         android:gravity="top|left"
-        android:text="L8 O5CDEFGAB&lt;C" />
+        android:text="@string/sample_mml" />
 
     <ListView
         android:id="@+id/warnings"
@@ -31,14 +31,14 @@
             android:id="@+id/ppbutton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Play"
+            android:text="@string/play"
             android:textAllCaps="false" />
 
         <Button
             android:id="@+id/stopbutton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Stop"
+            android:text="@string/stop"
             android:textAllCaps="false" />
 
         <SeekBar
@@ -68,7 +68,7 @@
         android:layout_above="@+id/state"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
-        android:text="Setting"
+        android:text="@string/setting"
         android:textAllCaps="false" />
 
 </RelativeLayout>

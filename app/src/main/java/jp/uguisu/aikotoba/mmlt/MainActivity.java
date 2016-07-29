@@ -9,7 +9,6 @@ import android.media.AudioFormat;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.text.InputType;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
@@ -26,7 +25,7 @@ import com.txt_nifty.sketch.flmml.MSequencer;
 import com.txt_nifty.sketch.flmml.rep.Sound;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 
 public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeListener, View.OnClickListener, View.OnLongClickListener {
 
@@ -36,6 +35,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     boolean buttonPlay = true;
     MmlEventListener mListener;
+    EditText mMmlField;
 
     Handler mHandler;
     Downloader mDl;
@@ -44,12 +44,16 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     ArrayAdapter<String> mWarnAdapter;
 
+    public static final int DIALOG_DOWNLOAD = 1;
+
+    public static final String PIKOKAKIKO_BASE = "http://dic.nicovideo.jp/mml/";
+
     @Override
     public boolean onLongClick(View view) {
         switch (view.getId()) {
             case R.id.ppbutton:
                 if (mDl == null)
-                    showDialog(1);
+                    showDialog(DIALOG_DOWNLOAD);
                 return true;
             case R.id.stopbutton:
                 startActivity(new Intent(this, TraceActivity.class));
@@ -60,34 +64,25 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     @Override
     protected Dialog onCreateDialog(int id) {
-        if (id == 1) {
-            final EditText et = new EditText(this);
-            et.setText("http://");
-            et.setInputType(InputType.TYPE_CLASS_TEXT);
-            return new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("URLを入力してください")
-                    .setView(et)
-                    .setPositiveButton("取得する", new DialogInterface.OnClickListener() {
+        if (id == DIALOG_DOWNLOAD) {
+            final EditText urlField = (EditText) View.inflate(this, R.layout.dialog_download, null);
+            return new AlertDialog.Builder(this).setTitle(R.string.enter_url).setView(urlField)
+                    .setNegativeButton(R.string.cancel, null)
+                    .setPositiveButton(R.string.download, new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             mDl = new Downloader();
-                            String url = et.getText().toString();
+                            String url = urlField.getText().toString();
                             //数字ならピコカキコをもってくる
                             try {
                                 int no = Integer.parseInt(url);
-                                url = "http://dic.nicovideo.jp/mml/" + no;
+                                url = PIKOKAKIKO_BASE + no;
                             } catch (NumberFormatException e) {
                                 //数字じゃない→そのまま
                             }
                             mDl.execute(url);
-                            EditText input = (EditText) findViewById(R.id.input);
                             mWarnAdapter.clear();
-                            mWarnAdapter.add("");
-                            mWarnAdapter.add("Downloading : " + url);
-                            input.setEnabled(false);
-                        }
-                    })
-                    .setNegativeButton("キャンセル", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
+                            mWarnAdapter.add(getString(R.string.downloading, url));
+                            mMmlField.setEnabled(false);
                         }
                     }).create();
         }
@@ -97,13 +92,13 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putString("mml", ((EditText) findViewById(R.id.input)).getText().toString());
+        outState.putString("mml", mMmlField.getText().toString());
     }
 
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        ((EditText) findViewById(R.id.input)).setText(savedInstanceState.getString("mml"));
+        mMmlField.setText(savedInstanceState.getString("mml"));
     }
 
     @Override
@@ -121,35 +116,36 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        mHandler = new Handler();
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        mToast = Toast.makeText(getApplicationContext(), "", Toast.LENGTH_SHORT);
-        try {
-            mFlmml = FlMML.getStaticInstance();
-        } catch (OutOfMemoryError e) {
-            mToast.setText("メモリ確保に失敗しました");
-            mToast.show();
-        }
         setContentView(R.layout.activity_main);
+
+        mHandler = new Handler();
         mListener = new MmlEventListener();
-        ((SeekBar) findViewById(R.id.volumebar)).setOnSeekBarChangeListener(this);
-        //button
-        mPlayButton = (Button) findViewById(R.id.ppbutton);
-        mPlayButton.setOnClickListener(this);
-        mPlayButton.setOnLongClickListener(this);
-        View stopbutton = findViewById(R.id.stopbutton);
-        stopbutton.setOnClickListener(this);
-        stopbutton.setOnLongClickListener(this);
-        findViewById(R.id.setting).setOnClickListener(this);
-        ListView listview = (ListView) findViewById(R.id.warnings);
-        mWarnAdapter = new ArrayAdapter<String>(this, R.layout.simple_textview, new ArrayList<>(Arrays.asList("", " Playボタン長押しでURL指定してMMLを読み込めます"))) {
+        mToast = Toast.makeText(getApplicationContext(), null, Toast.LENGTH_SHORT);
+        mWarnAdapter = new ArrayAdapter<String>(this, R.layout.simple_textview, new ArrayList<>(Collections.singletonList(getString(R.string.how_to_download)))) {
             @Override
             public boolean isEnabled(int position) {
                 return false;
             }
         };
-        listview.setAdapter(mWarnAdapter);
+        try {
+            mFlmml = FlMML.getStaticInstance();
+        } catch (OutOfMemoryError e) {
+            mToast.setText(R.string.out_of_memory_initialization);
+            mToast.show();
+        }
+
+        ((ListView) findViewById(R.id.warnings)).setAdapter(mWarnAdapter);
+        ((SeekBar) findViewById(R.id.volumebar)).setOnSeekBarChangeListener(this);
+        mPlayButton = (Button) findViewById(R.id.ppbutton);
+        mMmlField = (EditText) findViewById(R.id.input);
+        View stopbutton = findViewById(R.id.stopbutton);
+        mPlayButton.setOnClickListener(this);
+        mPlayButton.setOnLongClickListener(this);
+        stopbutton.setOnClickListener(this);
+        stopbutton.setOnLongClickListener(this);
+        findViewById(R.id.setting).setOnClickListener(this);
     }
 
     @Override
@@ -186,7 +182,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
         String str = ((TextView) findViewById(R.id.input)).getText().toString();
         if (!mFlmml.isPaused()) {
-            mListener.mTextRunnable.set("Compiling").run();
+            mListener.mTextRunnable.set(getString(R.string.compiling)).run();
             mHandler.post(mRunRunnable.set(str));
         } else
             mFlmml.play(str);
@@ -225,19 +221,19 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         switch (view.getId()) {
             case R.id.ppbutton:
                 if (buttonPlay) {
-                    b.setText("Pause");
+                    b.setText(R.string.pause);
                     play();
                 } else {
-                    b.setText("Play");
+                    b.setText(R.string.play);
                     pause();
                 }
                 buttonPlay = !buttonPlay;
                 break;
             case R.id.setting:
-                startActivity(new Intent(getApplicationContext(), SettingActivity.class));//TraceActivity.class));
+                startActivity(new Intent(getApplicationContext(), SettingActivity.class));
                 break;
             default:
-                mPlayButton.setText("Play");
+                mPlayButton.setText(R.string.play);
                 buttonPlay = true;
                 stop();
         }
@@ -260,8 +256,8 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
         @Override
         protected void onPostExecute(String s) {
-            String ttext = s != null ? "Succeed" : "Failed";
-            mToast.setText(ttext);
+            int id = s != null ? R.string.toast_succeed : R.string.toast_failed;
+            mToast.setText(id);
             mToast.show();
             EditText input = (EditText) findViewById(R.id.input);
             input.setEnabled(true);
@@ -270,8 +266,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
                 input.setText(s);
             } else {
                 mWarnAdapter.clear();
-                mWarnAdapter.add("");
-                mWarnAdapter.add(" Failed to Download.");
+                mWarnAdapter.add(getString(R.string.failed_to_download));
             }
             mDl = null;
         }
@@ -353,7 +348,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
             @Override
             public void run() {
                 buttonPlay = !ispause;
-                v.setText(ispause ? "Pause" : "Play");
+                v.setText(ispause ? R.string.pause : R.string.play);
                 ispause = false;
             }
         }
@@ -379,9 +374,9 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
                 mFlmml.play("");
                 mFlmml.stop();
 
-                mPlayButton.setText("Play");
+                mPlayButton.setText(R.string.play);
                 buttonPlay = true;
-                mListener.mTextRunnable.set("メモリが足りません!!").run();
+                mListener.mTextRunnable.set(getString(R.string.out_of_memory_compile)).run();
             }
         }
     }
