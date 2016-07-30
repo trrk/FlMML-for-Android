@@ -171,15 +171,15 @@ public class FlMML {
 
     public static class Listener {
         public void onTextChanged(String text) {
-
+            // いろんなスレッドから呼ばれる
         }
 
         public void onCompileCompleted(String warnings) {
-
+            // play()から呼ばれる
         }
 
         public void onComplete() {
-
+            // Handler経由で呼ばれる
         }
     }
 }

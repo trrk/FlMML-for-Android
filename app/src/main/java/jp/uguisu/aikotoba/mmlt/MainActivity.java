@@ -154,12 +154,11 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         if (mFlmml == null) return;
         if (mFlmml.isPlaying()) {
             buttonPlay = false;
-            mListener.mButtonPlayRunnable.ispause = true;
-            mListener.mButtonPlayRunnable.run();
+            mListener.ispause = true;
         } else {
             buttonPlay = true;
-            mListener.mButtonPlayRunnable.run();
         }
+        mListener.togglePlaying();
         mFlmml.setListener(mListener);
     }
 
@@ -276,19 +275,48 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     private class MmlEventListener extends FlMML.Listener {
         final Runnable1 mTextRunnable = new Runnable1();
-        final Runnable2 mWarningRunnable = new Runnable2();
-        final Runnable3 mButtonPlayRunnable = new Runnable3();
 
         public void onTextChanged(final String text) {
             mHandler.post(mTextRunnable.set(text));
         }
 
         public void onCompileCompleted(final String warnings) {
-            mHandler.post(mWarningRunnable.set(warnings));
+            mWarnAdapter.clear();
+            if (!warnings.equals("")) {
+                String[] s = warnings.split("\n");
+                for (int i = 0, len = s.length; i < len; i++)
+                    mWarnAdapter.add(s[i]);
+            } else {
+                String title = mFlmml.getMetaTitle();
+                String artist = mFlmml.getMetaArtist();
+                String comment = mFlmml.getMetaComment();
+                String coding = mFlmml.getMetaCoding();
+                if (!title.equals("")) {
+                    mWarnAdapter.add("-Title-\n" + title);
+                }
+                if (!artist.equals("")) {
+                    mWarnAdapter.add("-Artist-\n" + artist);
+                }
+                if (!comment.equals("")) {
+                    mWarnAdapter.add("-Comment-\n" + comment);
+                }
+                if (!coding.equals("")) {
+                    mWarnAdapter.add("-Coding-\n" + coding);
+                }
+            }
         }
 
+        boolean ispause;
+        private TextView v = ((Button) findViewById(R.id.ppbutton));
+
         public void onComplete() {
-            mHandler.post(mButtonPlayRunnable);
+            togglePlaying();
+        }
+
+        public void togglePlaying() {
+            buttonPlay = !ispause;
+            v.setText(ispause ? R.string.pause : R.string.play);
+            ispause = false;
         }
 
         class Runnable1 implements Runnable {
@@ -303,55 +331,6 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
             @Override
             public void run() {
                 v.setText(text);
-            }
-        }
-
-        class Runnable2 implements Runnable {
-            private volatile String warnings;
-
-            public Runnable2 set(String s) {
-                warnings = s;
-                return this;
-            }
-
-            @Override
-            public void run() {
-                mWarnAdapter.clear();
-                if (!warnings.equals("")) {
-                    String[] s = warnings.split("\n");
-                    for (int i = 0, len = s.length; i < len; i++)
-                        mWarnAdapter.add(s[i]);
-                } else {
-                    String title = mFlmml.getMetaTitle();
-                    String artist = mFlmml.getMetaArtist();
-                    String comment = mFlmml.getMetaComment();
-                    String coding = mFlmml.getMetaCoding();
-                    if (!title.equals("")) {
-                        mWarnAdapter.add("-Title-\n" + title);
-                    }
-                    if (!artist.equals("")) {
-                        mWarnAdapter.add("-Artist-\n" + artist);
-                    }
-                    if (!comment.equals("")) {
-                        mWarnAdapter.add("-Comment-\n" + comment);
-                    }
-                    if (!coding.equals("")) {
-                        mWarnAdapter.add("-Coding-\n" + coding);
-                    }
-                }
-                warnings = null;
-            }
-        }
-
-        class Runnable3 implements Runnable {
-            boolean ispause;
-            private TextView v = ((Button) findViewById(R.id.ppbutton));
-
-            @Override
-            public void run() {
-                buttonPlay = !ispause;
-                v.setText(ispause ? R.string.pause : R.string.play);
-                ispause = false;
             }
         }
 
