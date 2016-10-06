@@ -7,8 +7,10 @@ import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 
 import com.txt_nifty.sketch.flmml.FlMML;
 import com.txt_nifty.sketch.flmml.MEvent;
@@ -17,7 +19,7 @@ import com.txt_nifty.sketch.flmml.MTrack;
 
 import java.util.ArrayList;
 
-public class TraceActivity extends Activity implements SurfaceHolder.Callback {
+public class TraceActivity extends Activity implements SurfaceHolder.Callback, View.OnTouchListener {
 
     SurfaceView mSurface;
     SurfaceHolder mHolder;
@@ -28,6 +30,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(mSurface = new SurfaceView(this));
+        mSurface.setOnTouchListener(this);
         mHolder = mSurface.getHolder();
         mHolder.addCallback(this);
         mTracks = FlMML.getStaticInstance().getRawMML().getRawTracks();
@@ -52,6 +55,22 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback {
         mRunner.finish();
     }
 
+    private int preY;
+
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                preY = (int) event.getY();
+                break;
+            case MotionEvent.ACTION_MOVE:
+                int y = (int) event.getY();
+                mRunner.scroll(y - preY);
+                preY = y;
+        }
+        return true;
+    }
+
     private static class Runner implements Runnable {
         private static final String[] table = {"c", "c+", "d", "d+", "e", "f", "f+", "g", "g+", "a", "a+", "b"};
         private final SurfaceHolder mHolder;
@@ -65,11 +84,20 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback {
         private double mSpt;
         private byte[] mOctave;
 
+        private int scroll;
+
         Runner(SurfaceHolder sv, ArrayList<MTrack> tracks, Handler handler) {
             mHolder = sv;
             mTracks = tracks;
             mHandler = handler;
             init();
+        }
+
+        private void scroll(int dy) {
+            synchronized (this) {
+                scroll += dy;
+                if (scroll > 0) scroll = 0;
+            }
         }
 
         private void init() {
@@ -136,6 +164,9 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback {
                 Canvas c = mHolder.lockCanvas();
                 if (c == null) continue;
                 float scale = (c.getWidth() / 286f);
+                synchronized (this) {
+                    c.translate(0, scroll);
+                }
                 c.scale(scale, scale);
                 c.drawColor(0xFF333333);
                 Paint p = new Paint();
