@@ -6,6 +6,8 @@
 
 package com.txt_nifty.sketch.fmgenAs;
 
+import java.util.Random;
+
 /**
  * ...
  *
@@ -14,6 +16,7 @@ package com.txt_nifty.sketch.fmgenAs;
 
 public class OPM extends Timer {
 
+    private static Random rand = new Random();
     private static final int OPM_LFOENTS = 512;
     private static final int[] sltable = new int[]{
             0, 4, 8, 12, 16, 20, 24, 28,
@@ -56,7 +59,7 @@ public class OPM extends Timer {
 
     // Cのrand()の仕様に合わせる。0～32767の値を返す
     private static int rand() {
-        return (int) (Math.random() * 32768);
+        return rand.nextInt(32768);
     }
 
     private static void BuildLFOTable() {
@@ -417,7 +420,7 @@ public class OPM extends Timer {
 
     //  合成 (stereo)
     public void Mix(double[] buffer, int start, int nsamples) {
-        int i;
+        int i, len;
         // odd bits - active, even bits - lfo
         int activech = 0;
         for (i = 0; i < 8; i++)
@@ -436,7 +439,7 @@ public class OPM extends Timer {
             Operator op2 = ch[0].op[2];
             Operator op3 = ch[0].op[3];
 
-            for (i = start; i < start + nsamples; i++) {
+            for (i = start, len = start + nsamples; i < len; i++) {
                 // -----------------------------------------------------------
                 // LFO();
                 if (lfowaveform != 3) {
@@ -457,8 +460,6 @@ public class OPM extends Timer {
                 if ((lfo_step_ & 7) == 0) {
                     lfo_count_ += lfo_count_diff_;
                 }
-
-                r = 0;
 
                 if ((activech & 0x4000) != 0) {
                     // LFOあり*****************************************************************************************
@@ -782,14 +783,14 @@ public class OPM extends Timer {
 
                         r = buf[ox[2]] + op3.out_;
                     }
-                    buffer[i + 0] = (((((r * fmvolume) >> FM.FM_VOLBITS) * amplevel) >> FM.FM_VOLBITS) / 8192.0);
+                    buffer[i] = (((((r * fmvolume) >> FM.FM_VOLBITS) * amplevel) >> FM.FM_VOLBITS) / 8192.0);
                 }
             }
         }
         // @LinearDrive: add start [2011/12/04]
         else {
             //全てのオペレータがEGPhase.offの場合、無音をレンダリング
-            for (i = start; i < start + nsamples; i++) {
+            for (i = start, len = start + nsamples; i < len; i++) {
                 buffer[i] = 0.0;
             }
         }
