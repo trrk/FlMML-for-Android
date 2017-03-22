@@ -135,7 +135,8 @@ public class MTrack {
                             case MStatus.LFO_DPWD:
                                 mLfoWidth = e.getLFOWidth() * mSpt;
                                 mCh.setLFODPWD(e.getLFODepth(),
-                                        44100.0 / mLfoWidth);
+                                        //AS3でInfinityを型変換すると0になることを再現するため
+                                        mLfoWidth == 0 ? 0 : 44100.0 / mLfoWidth);
                                 break;
                             case MStatus.LFO_DLTM:
                                 mCh.setLFODLTM((int) (e.getLFODelay() * mSpt),
