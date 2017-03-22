@@ -25,6 +25,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
     SurfaceHolder mHolder;
     ArrayList<MTrack> mTracks;
     private Runner mRunner;
+    private int preY;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,8 +55,6 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
     public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
         mRunner.finish();
     }
-
-    private int preY;
 
     @Override
     public boolean onTouch(View v, MotionEvent event) {
@@ -177,7 +176,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 p.setColor(0xFFFFFFFF);
                 p.setTextSize(30);
                 for (int i = 1; i < size; i++) {
-                    sb.append(i).append(":").append(mNow[i] ? "|" : "-").append(mNumber[i] == Integer.MIN_VALUE ? "None" : mNumber[i] >= 1000 ? mNumber[i] - 1000 : table[mNumber[i] % 12 >= 0 ? mNumber[i] % 12 : mNumber[i] % 12 + 12] + (mNumber[i] < 0 ? (mNumber[i] + 1) / 12 - 1 : mNumber[i] / 12)).append('\n');
+                    sb.append(i).append(":").append(mNow[i] ? "|" : "-").append(mNumber[i] == Integer.MIN_VALUE ? "None" : mNumber[i] >= 1000 ? mNumber[i] - 1000 : table[mNumber[i] % 12 >= 0 ? mNumber[i] % 12 : mNumber[i] % 12 + 12] + (mNumber[i] < 0 ? (mNumber[i] + 1) / 12 - 1 : mNumber[i] / 12));
                     c.drawText(sb.toString(), 150, 17 + 36 * (i) - 14, p);
                     sb.setLength(0);
                 }
