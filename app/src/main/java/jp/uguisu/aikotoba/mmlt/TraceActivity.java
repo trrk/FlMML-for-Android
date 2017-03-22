@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -31,6 +32,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(mSurface = new SurfaceView(this));
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
         mSurface.setOnTouchListener(this);
         mHolder = mSurface.getHolder();
         mHolder.addCallback(this);

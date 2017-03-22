@@ -3,6 +3,7 @@ package jp.uguisu.aikotoba.mmlt;
 import android.app.Activity;
 import android.content.SharedPreferences;
 import android.media.AudioFormat;
+import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.RadioGroup;
@@ -16,7 +17,7 @@ public class SettingActivity extends Activity implements RadioGroup.OnCheckedCha
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setting);
-
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
         mPreferences = getSharedPreferences("setting", MODE_PRIVATE);
         int format = mPreferences.getInt("output_format", Sound.RECOMMENDED_ENCODING);
