@@ -52,7 +52,7 @@ public class MOscMod {
 
     public void setFrequency(double frequency) {
         mFrequency = frequency;
-        mFreqShift = (int) (frequency * (PHASE_LEN / MSequencer.RATE44100));
+        mFreqShift = (int) (frequency * ((double) PHASE_LEN / MSequencer.RATE44100));
     }
 
     public void setWaveNo(int waveNo) {
