@@ -14,7 +14,8 @@
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
-            android:label="@string/app_name">
+            android:label="@string/app_name"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -27,6 +28,10 @@
         <activity
             android:name=".TraceActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize" />
+
+        <service
+            android:name=".BackgroundService"
+            android:exported="false" />
     </application>
 
 </manifest>

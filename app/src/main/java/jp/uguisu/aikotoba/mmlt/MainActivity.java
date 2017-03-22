@@ -3,12 +3,15 @@ package jp.uguisu.aikotoba.mmlt;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.media.AudioFormat;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
@@ -30,24 +33,31 @@ import java.util.Collections;
 
 public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeListener, View.OnClickListener, View.OnLongClickListener {
 
+    public static final int DIALOG_DOWNLOAD = 1;
+    public static final String PIKOKAKIKO_BASE = "http://dic.nicovideo.jp/mml/";
     FlMML mFlmml;
     Toast mToast;
     Button mPlayButton;
-
     boolean buttonPlay = true;
     MmlEventListener mListener;
     EditText mMmlField;
-
     Handler mHandler;
     Downloader mDl;
     HttpGetString mGetter = new HttpGetString();
     RunRunnable mRunRunnable = new RunRunnable();
-
     ArrayAdapter<String> mWarnAdapter;
+    private BackgroundService.ServiceBinder binder;
+    ServiceConnection connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            binder = (BackgroundService.ServiceBinder) service;
+        }
 
-    public static final int DIALOG_DOWNLOAD = 1;
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
 
-    public static final String PIKOKAKIKO_BASE = "http://dic.nicovideo.jp/mml/";
+        }
+    };
 
     @Override
     public boolean onLongClick(View view) {
@@ -150,6 +160,12 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        bindService(new Intent(getApplicationContext(), BackgroundService.class), connection, BIND_AUTO_CREATE);
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         if (mFlmml == null) return;
@@ -170,6 +186,14 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
             mFlmml.setListener(null);
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (binder != null)
+            binder.activityClosed();
+        unbindService(connection);
+    }
+
     public void play() {
         int format = getSharedPreferences("setting", MODE_PRIVATE).getInt("output_format", Sound.RECOMMENDED_ENCODING);
         switch (format) {
@@ -186,16 +210,23 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         if (!mFlmml.isPaused()) {
             mListener.mTextRunnable.set(getString(R.string.compiling)).run();
             mHandler.post(mRunRunnable.set(str));
-        } else
+        } else {
             mFlmml.play(str);
+            if (binder != null)
+                binder.startPlaying();
+        }
     }
 
     public void pause() {
         mFlmml.pause();
+        if (binder != null)
+            binder.stopPlaying();
     }
 
     public void stop() {
         mFlmml.stop();
+        if (binder != null)
+            binder.stopPlaying();
     }
 
     @Override
@@ -274,6 +305,8 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     private class MmlEventListener extends FlMML.Listener {
         final Runnable1 mTextRunnable = new Runnable1();
+        boolean ispause;
+        private TextView v = ((Button) findViewById(R.id.ppbutton));
 
         public void onTextChanged(final String text) {
             mHandler.post(mTextRunnable.set(text));
@@ -305,10 +338,9 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
             }
         }
 
-        boolean ispause;
-        private TextView v = ((Button) findViewById(R.id.ppbutton));
-
         public void onComplete() {
+            if (binder != null)
+                binder.stopPlaying();
             togglePlaying();
         }
 
@@ -349,8 +381,12 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
             try {
                 mFlmml.play(s);
                 mListener.mTextRunnable.set("").run();
+                if (binder != null)
+                    binder.startPlaying();
             } catch (OutOfMemoryError e) {
                 //メモリ解放
+                if (binder != null)
+                    binder.stopPlaying();
                 mFlmml.play("");
                 mFlmml.stop();
 
