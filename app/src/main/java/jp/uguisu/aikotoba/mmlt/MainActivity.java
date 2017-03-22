@@ -24,6 +24,7 @@ import com.txt_nifty.sketch.flmml.FlMML;
 import com.txt_nifty.sketch.flmml.MSequencer;
 import com.txt_nifty.sketch.flmml.rep.Sound;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -244,14 +245,12 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
         @Override
         protected String doInBackground(String... strings) {
-            mGetter.open();
             String res;
             try {
-                res = mGetter.get(strings[0], null);
-            } catch (Exception e) {
+                res = mGetter.get(strings[0]);
+            } catch (IOException e) {
                 res = null;
             }
-            mGetter.close();
             return res;
         }
 

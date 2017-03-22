@@ -1,80 +1,55 @@
 package jp.uguisu.aikotoba.mmlt;
 
-import android.text.TextUtils;
-
-import org.apache.http.Header;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.CookieStore;
-import org.apache.http.client.ResponseHandler;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.cookie.Cookie;
-import org.apache.http.impl.client.DefaultHttpClient;
+import android.os.Build;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URI;
-import java.util.zip.GZIPInputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.Charset;
 
-public class HttpGetString implements ResponseHandler<String> {
+public class HttpGetString {
 
-    private DefaultHttpClient mClient;
+    private static final int CONNECT_TIME_OUT = 5000;
+    private static final int READ_TIME_OUT = 15000;
 
-    @Override
-    public String handleResponse(HttpResponse response) throws IOException {
-        switch (response.getStatusLine().getStatusCode()) {
-            case HttpStatus.SC_OK:
-                InputStream stream = null;
-                if (isGZipHttpResponse(response)) {
-                    stream = new GZIPInputStream(response.getEntity().getContent());
-                } else {
-                    stream = response.getEntity().getContent();
-                }
-                //InputStreamをStringに。
-                InputStreamReader reader = new InputStreamReader(stream, "UTF-8");
-                StringBuilder builder = new StringBuilder();
-                char[] buf = new char[10240];
-                int numRead;
-                while (0 <= (numRead = reader.read(buf))) {
-                    builder.append(buf, 0, numRead);
-                }
-                return builder.toString();
-            default:
-                throw new IOException("StatusCode=" + response.getStatusLine().getStatusCode());
+    static {
+        if (Integer.parseInt(Build.VERSION.SDK) < Build.VERSION_CODES.FROYO) {
+            System.setProperty("http.keepAlive", "false");
         }
     }
 
-    private boolean isGZipHttpResponse(HttpResponse response) {
-        Header header = response.getEntity().getContentEncoding();
-        if (header == null) return false;
-
-        String value = header.getValue();
-        return (!TextUtils.isEmpty(value) && value.contains("gzip"));
-    }
-
-    public String get(String url, Cookie[] cookies) throws IOException {
-        HttpGet req = new HttpGet();
-        URI uri = URI.create(url);
-        req.setURI(uri);
-        req.setHeader("Accept-Encoding", "gzip, deflate");
-        CookieStore cbox = mClient.getCookieStore();
-        cbox.clear();
-        if (cookies != null) {
-            for (int i = 0; i < cookies.length; i++) {
-                cbox.addCookie(cookies[i]);
+    public String get(String urlstr) throws IOException {
+        HttpURLConnection con = null;
+        InputStreamReader reader = null;
+        try {
+            URL url = new URL(urlstr);
+            URLConnection urlCon = url.openConnection();
+            if (!(urlCon instanceof HttpURLConnection))
+                throw new IOException("Not Http");
+            con = (HttpURLConnection) urlCon;
+            con.setConnectTimeout(CONNECT_TIME_OUT);
+            con.setReadTimeout(READ_TIME_OUT);
+            int code = con.getResponseCode();
+            if (code != HttpURLConnection.HTTP_OK)
+                throw new IOException("Not 200 OK : " + code);
+            InputStream stream = con.getInputStream();
+            if (stream == null) return "";
+            //InputStreamをStringに。
+            reader = new InputStreamReader(stream, Charset.forName("UTF-8"));
+            StringBuilder builder = new StringBuilder();
+            char[] buf = new char[10240];
+            int numRead;
+            while (0 <= (numRead = reader.read(buf))) {
+                builder.append(buf, 0, numRead);
             }
+            return builder.toString();
+        } finally {
+            if (reader != null) reader.close();
+            if (con != null) con.disconnect();
         }
-        return mClient.execute(req, this);
-    }
-
-    public void open() {
-        mClient = new DefaultHttpClient();
-    }
-
-    public void close() {
-        mClient.getConnectionManager().shutdown();
-        mClient = null;
     }
 
 }
