@@ -63,8 +63,13 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     public boolean onLongClick(View view) {
         switch (view.getId()) {
             case R.id.ppbutton:
-                if (mDl == null)
-                    showDialog(DIALOG_DOWNLOAD);
+                if (mDl != null) {
+                    mToast.setText(R.string.toast_canceled);
+                    mToast.show();
+                    mDl.cancel(true);
+                    finishDownload();
+                }
+                showDialog(DIALOG_DOWNLOAD);
                 return true;
             case R.id.stopbutton:
                 startActivity(new Intent(this, TraceActivity.class));
@@ -81,7 +86,6 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
                     .setNegativeButton(R.string.cancel, null)
                     .setPositiveButton(R.string.download, new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
-                            mDl = new Downloader();
                             String url = urlField.getText().toString();
                             //数字ならピコカキコをもってくる
                             try {
@@ -90,6 +94,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
                             } catch (NumberFormatException e) {
                                 //数字じゃない→そのまま
                             }
+                            mDl = new Downloader();
                             mDl.execute(url);
                             mWarnAdapter.clear();
                             mWarnAdapter.add(getString(R.string.downloading, url));
@@ -194,6 +199,13 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         unbindService(connection);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mDl != null)
+            mDl.cancel(true);
+    }
+
     public void play() {
         int format = getSharedPreferences("setting", MODE_PRIVATE).getInt("output_format", Sound.RECOMMENDED_ENCODING);
         switch (format) {
@@ -272,34 +284,43 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         }
     }
 
+    private void finishDownload() {
+        mMmlField.setEnabled(true);
+        mWarnAdapter.clear();
+        mDl = null;
+    }
+
     private class Downloader extends AsyncTask<String, Void, String> {
+
+        private volatile IOException err;
 
         @Override
         protected String doInBackground(String... strings) {
-            String res;
+            String res = null;
             try {
                 res = mGetter.get(strings[0]);
             } catch (IOException e) {
-                res = null;
+                err = e;
             }
             return res;
         }
 
         @Override
         protected void onPostExecute(String s) {
-            int id = s != null ? R.string.toast_succeed : R.string.toast_failed;
+            int id = err == null ? R.string.toast_succeed : R.string.toast_failed;
             mToast.setText(id);
             mToast.show();
-            EditText input = (EditText) findViewById(R.id.input);
-            input.setEnabled(true);
-            if (s != null) {
-                mWarnAdapter.clear();
-                input.setText(s);
+            finishDownload();
+            if (err == null) {
+                mMmlField.setText(s);
             } else {
-                mWarnAdapter.clear();
                 mWarnAdapter.add(getString(R.string.failed_to_download));
+                String message = err.getMessage();
+                if (message != null)
+                    mWarnAdapter.add(message);
+                else
+                    mWarnAdapter.add(err.getClass().getSimpleName());
             }
-            mDl = null;
         }
     }
 

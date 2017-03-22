@@ -8,7 +8,7 @@
     <string name="default_url">http://</string>
     <string name="how_to_download">\n Playボタン長押しでURL指定してMMLを読み込めます</string>
     <string name="failed_to_download">\n Failed to Download.</string>
-    <string name="downloading">\n Downloading : %1$s</string>
+    <string name="downloading">\n Downloading : %1$s\n Playボタン長押しでキャンセルできます。</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
     <string name="stop">Stop</string>
@@ -20,6 +20,7 @@
     <string name="cancel">キャンセル</string>
     <string name="toast_succeed">Succeed</string>
     <string name="toast_failed">Failed</string>
+    <string name="toast_canceled">Canceled</string>
 
     <!-- SettingActivity -->
     <string name="setting">Setting</string>
