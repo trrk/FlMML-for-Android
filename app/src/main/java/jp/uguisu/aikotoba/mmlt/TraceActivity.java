@@ -123,7 +123,6 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
         private void calcSpt(double bpm) {
             double tps = bpm * 96.0 / 60.0;
             mSpt = 44100.0 / tps * 1000 / 44100;
-            System.out.println("Spt:" + mSpt);
         }
 
         @Override
@@ -147,18 +146,21 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                     } else
                         fpsFrameCount++;
                 }
+                double startSpt = mSpt;
                 for (int i = 0; i < size; i++) {
                     ArrayList<MEvent> events = mTracks.get(i).getRawEvents();
                     int eLen = events.size();
                     int mae = mPointer[i];
+                    double spt = startSpt;
                     while (mPointer[i] < eLen) {
                         MEvent e = events.get(mPointer[i]);
-                        double milli = e.delta * mSpt;
+                        double milli = e.delta * spt;
                         if (milli + mEvtime[i] <= now) {
                             mEvtime[i] += milli;
                             switch (e.getStatus()) {
                                 case MStatus.TEMPO:
                                     calcSpt(e.getTempo());
+                                    spt = mSpt;
                                     break;
                                 case MStatus.NOTE_ON:
                                     // POLY 範囲内に収まっているかは知らない
@@ -174,7 +176,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                                     break;
                                 case MStatus.PORTAMENTO:
                                     mPorDepth[i] = e.getPorDepth();
-                                    mPorLen[i] = e.getPorLen() * mSpt;
+                                    mPorLen[i] = e.getPorLen() * spt;
                                     break;
                                 case MStatus.EOT:
                                     finish();
