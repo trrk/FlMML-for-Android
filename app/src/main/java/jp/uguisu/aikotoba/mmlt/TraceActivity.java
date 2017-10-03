@@ -85,14 +85,16 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
         private int[] mPorDepth;
         private double mSpt;
         private byte[] mOctave;
+        private double mFps;
 
         private volatile int scroll;
+
+        private static final int FPS_REFRESH_TIME = 3000;
 
         Runner(SurfaceHolder sv, ArrayList<MTrack> tracks, Handler handler) {
             mHolder = sv;
             mTracks = tracks;
             mHandler = handler;
-            init();
         }
 
         private void scroll(int dy) {
@@ -126,12 +128,25 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
 
         @Override
         public void run() {
+            init();
             calcSpt(120);
             int[] porNowFreqNo = new int[mTracks.size()];
+            long fpsTimeStart = System.currentTimeMillis();
+            int fpsFrameCount = 0;
+            Paint p = new Paint();
             while (!mFinish) {
                 int size = mTracks.size();
                 long now = FlMML.getStaticInstance().getNowMSec();
-                long start = System.currentTimeMillis();
+                {
+                    long start = System.currentTimeMillis();
+                    long fpsDiff = start - fpsTimeStart;
+                    if (fpsDiff > FPS_REFRESH_TIME) {
+                        mFps = fpsFrameCount * 10000 / fpsDiff / 10d;
+                        fpsTimeStart = start;
+                        fpsFrameCount = 1;
+                    } else
+                        fpsFrameCount++;
+                }
                 for (int i = 0; i < size; i++) {
                     ArrayList<MEvent> events = mTracks.get(i).getRawEvents();
                     int eLen = events.size();
@@ -175,9 +190,16 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 Canvas c = mHolder.lockCanvas();
                 if (c == null) continue;
                 float scale = (c.getWidth() / 286f);
-                c.translate(0, scroll);
+                // fps
+                p.setColor(0xFFFFFFFF);
+                p.setTextSize(8);
+                c.save();
                 c.scale(scale, scale);
                 c.drawColor(0xFF333333);
+                c.drawText("FPS: " + mFps, 235, 15, p);
+                c.restore();
+                c.translate(0, scroll);
+                c.scale(scale, scale);
 
                 //octave
                 for (int i = 0; i < mTracks.size(); i++) {
@@ -204,7 +226,6 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                     }
                 }
 
-                Paint p = new Paint();
                 drawKeyboards(c, p);
                 drawPlayedWhiteKeys(c, p);
                 drawKeys(c, p);
