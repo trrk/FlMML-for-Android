@@ -79,13 +79,12 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
         private boolean mFinish;
         private ArrayList<MTrack> mTracks;
         private int[] mPointer;
-        private int[] mNumber;
-        private boolean[] mNow;
+        private ArrayList<Integer>[] mNumber;
         private double[] mEvtime;
         private double mSpt;
         private byte[] mOctave;
 
-        private int scroll;
+        private volatile int scroll;
 
         Runner(SurfaceHolder sv, ArrayList<MTrack> tracks, Handler handler) {
             mHolder = sv;
@@ -95,23 +94,23 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
         }
 
         private void scroll(int dy) {
-            synchronized (this) {
-                scroll += dy;
-                if (scroll > 0) scroll = 0;
-            }
+            scroll += dy;
+            // 一瞬はみでる可能性もある
+            if (scroll > 0) scroll = 0;
         }
 
         private void init() {
-            mPointer = new int[mTracks.size()];
-            mNumber = new int[mTracks.size()];
-            mOctave = new byte[mTracks.size()];
+            class IntegerArrayList extends ArrayList<Integer> {
+            }
+            mNumber = new IntegerArrayList[mTracks.size()];
             for (int i = 0; i < mNumber.length; i++)
-                mNumber[i] = Integer.MIN_VALUE;
+                mNumber[i] = new IntegerArrayList();
+            mPointer = new int[mTracks.size()];
+            mOctave = new byte[mTracks.size()];
             mEvtime = new double[mTracks.size()];
-            mNow = new boolean[mTracks.size()];
         }
 
-        public void finish() {
+        private void finish() {
             mFinish = true;
         }
 
@@ -142,14 +141,16 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                                     calcSpt(e.getTempo());
                                     break;
                                 case MStatus.NOTE_ON:
-                                    mNow[i] = true;
-                                    mNumber[i] = e.getNoteNo();
+                                    // POLY 範囲内に収まっているかは知らない
+                                    mNumber[i].add(e.getNoteNo());
                                     break;
                                 case MStatus.NOTE_OFF:
-                                    mNow[i] = false;
+                                    mNumber[i].remove((Integer) e.getNoteNo());
                                     break;
                                 case MStatus.NOTE:
-                                    mNumber[i] = 1000 + e.getNoteNo();
+                                    // []内でスラーしたら知らない
+                                    mNumber[i].clear();
+                                    mNumber[i].add(e.getNoteNo());
                                     break;
                                 case MStatus.EOT:
                                     finish();
@@ -165,20 +166,41 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 Canvas c = mHolder.lockCanvas();
                 if (c == null) continue;
                 float scale = (c.getWidth() / 286f);
-                synchronized (this) {
-                    c.translate(0, scroll);
-                }
+                c.translate(0, scroll);
                 c.scale(scale, scale);
                 c.drawColor(0xFF333333);
+
+                //octave
+                for (int i = 0; i < mTracks.size(); i++) {
+                    for (int key : mNumber[i]) {
+                        byte octave = (byte) (key < 0 ? (key + 1) / 12 - 1 : key / 12);
+                        if (octave < mOctave[i]) {
+                            mOctave[i] = octave;
+                        }
+                        if (octave > mOctave[i] + 1) {
+                            mOctave[i] = (byte) (octave - 1);
+                        }
+                    }
+                }
+
                 Paint p = new Paint();
                 drawKeyboards(c, p);
                 drawPlayedWhiteKeys(c, p);
                 drawKeys(c, p);
                 drawPlayedBlackKeys(c, p);
+                drawOctaves(c, p);
                 p.setColor(0xFFFFFFFF);
                 p.setTextSize(30);
                 for (int i = 1; i < size; i++) {
-                    sb.append(i).append(":").append(mNow[i] ? "|" : "-").append(mNumber[i] == Integer.MIN_VALUE ? "None" : mNumber[i] >= 1000 ? mNumber[i] - 1000 : table[mNumber[i] % 12 >= 0 ? mNumber[i] % 12 : mNumber[i] % 12 + 12] + (mNumber[i] < 0 ? (mNumber[i] + 1) / 12 - 1 : mNumber[i] / 12));
+                    sb.append(i).append(' ');
+                    for (int key : mNumber[i]) {
+                        byte octave = (byte) (key < 0 ? (key + 1) / 12 - 1 : key / 12);
+                        int octavepos = octave - mOctave[i];
+                        if (octavepos != 0 && octavepos != 1)
+                            sb.append(table[key % 12 >= 0 ? key % 12 : key % 12 + 12])
+                                    .append(key < 0 ? (key + 1) / 12 - 1 : key / 12)
+                                    .append(' ');
+                    }
                     c.drawText(sb.toString(), 150, 17 + 36 * (i) - 14, p);
                     sb.setLength(0);
                 }
@@ -191,88 +213,27 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             }
         }
 
+        private static final boolean[] KEY_IS_WHITE = new boolean[]{true, false, true, false, true, true, false, true, false, true, false, true};
+        private static final int[] KEY_DRAW_POS = new int[]{0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6};
+
         private void drawPlayedWhiteKeys(Canvas c, Paint p) {
             p.setColor(Color.RED);
             c.save();
             c.translate(0, 17);
             for (int i = 1, size = mTracks.size(); i < size; i++) {
-                if (!mNow[i]) {
-                    c.translate(0, 36);
-                    continue;
-                }
-                int mkey = mNumber[i];
-                if (mkey >= 1000) mkey -= 1000;
-                byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
-                if (octave < mOctave[i]) {
-                    mOctave[i] = octave;
-                }
-                if (octave > mOctave[i] + 1) {
-                    mOctave[i] = (byte) (octave - 1);
-                }
-                int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
-                boolean bottom = false;
-                int pos = 0;
-                switch (key) {
-                    case 0:// C
-                        bottom = true;
-                        pos = 0;
-                        break;
-                    case 1:// C+
-                        bottom = false;
-                        pos = 1;
-                        break;
-                    case 2:// D
-                        bottom = true;
-                        pos = 1;
-                        break;
-                    case 3:// D+
-                        bottom = false;
-                        pos = 2;
-                        break;
-                    case 4:// E
-                        bottom = true;
-                        pos = 2;
-                        break;
-                    case 5:// F
-                        bottom = true;
-                        pos = 3;
-                        break;
-                    case 6:// F+
-                        bottom = false;
-                        pos = 4;
-                        break;
-                    case 7:// G
-                        bottom = true;
-                        pos = 4;
-                        break;
-                    case 8:// G+
-                        bottom = false;
-                        pos = 5;
-                        break;
-                    case 9:// A
-                        bottom = true;
-                        pos = 5;
-                        break;
-                    case 10:// A+
-                        bottom = false;
-                        pos = 6;
-                        break;
-                    case 11: // B
-                        bottom = true;
-                        pos = 6;
-                }
-                int x = 3 + pos * 10;
-                switch (octave - mOctave[i]) {
-                    case 0:
-                        break;
-                    case 1:
-                        x += 70;
-                        break;
-                    default:
-                        Log.v("TraceActivity", "a");
-                }
-                if (bottom) {
-                    c.drawRect(x, 0, x + 10, 30, p);
+                for (int mkey : mNumber[i]) {
+                    int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
+                    boolean bottom = KEY_IS_WHITE[key];
+                    if (bottom) {
+                        int pos = KEY_DRAW_POS[key];
+                        int x = 3 + pos * 10;
+                        byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
+                        int octavepos = octave - mOctave[i];
+                        if (octavepos != 0 && octavepos != 1)
+                            continue;
+                        x += octavepos * 70;
+                        c.drawRect(x, 0, x + 10, 30, p);
+                    }
                 }
                 c.translate(0, 36);
             }
@@ -284,84 +245,34 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             c.save();
             c.translate(0, 17);
             for (int i = 1, size = mTracks.size(); i < size; i++) {
-                if (!mNow[i]) {
-                    c.translate(0, 36);
-                    continue;
+                for (int mkey : mNumber[i]) {
+                    int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
+                    boolean bottom = KEY_IS_WHITE[key];
+                    if (!bottom) {
+                        int pos = KEY_DRAW_POS[key];
+                        int x = 3 + pos * 10;
+                        byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
+                        int octavepos = octave - mOctave[i];
+                        if (octavepos != 0 && octavepos != 1)
+                            continue;
+                        x += octavepos * 70;
+                        c.drawRect(x - 2, 0, x + 3, 18, p);
+                    }
                 }
-                int mkey = mNumber[i];
-                if (mkey >= 1000) mkey -= 1000;
-                byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
-                if (octave < mOctave[i]) {
-                    mOctave[i] = octave;
-                }
-                if (octave > mOctave[i] + 1) {
-                    mOctave[i] = (byte) (octave - 1);
-                }
-                int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
-                boolean bottom = false;
-                int pos = 0;
-                switch (key) {
-                    case 0:// C
-                        bottom = true;
-                        pos = 0;
-                        break;
-                    case 1:// C+
-                        bottom = false;
-                        pos = 1;
-                        break;
-                    case 2:// D
-                        bottom = true;
-                        pos = 1;
-                        break;
-                    case 3:// D+
-                        bottom = false;
-                        pos = 2;
-                        break;
-                    case 4:// E
-                        bottom = true;
-                        pos = 2;
-                        break;
-                    case 5:// F
-                        bottom = true;
-                        pos = 3;
-                        break;
-                    case 6:// F+
-                        bottom = false;
-                        pos = 4;
-                        break;
-                    case 7:// G
-                        bottom = true;
-                        pos = 4;
-                        break;
-                    case 8:// G+
-                        bottom = false;
-                        pos = 5;
-                        break;
-                    case 9:// A
-                        bottom = true;
-                        pos = 5;
-                        break;
-                    case 10:// A+
-                        bottom = false;
-                        pos = 6;
-                        break;
-                    case 11: // B
-                        bottom = true;
-                        pos = 6;
-                }
-                int x = 3 + pos * 10;
-                switch (octave - mOctave[i]) {
-                    case 0:
-                        break;
-                    case 1:
-                        x += 70;
-                        break;
-                    default:
-                        Log.v("TraceActivity", "a");
-                }
-                if (!bottom) {
-                    c.drawRect(x - 2, 0, x + 3, 18, p);
-                }
+                c.translate(0, 36);
+            }
+            c.restore();
+        }
+
+        private void drawOctaves(Canvas c, Paint p) {
+            p.setColor(Color.BLACK);
+            p.setTextSize(8);
+            c.save();
+            c.translate(3, 17);
+            for (int i = 1, size = mTracks.size(); i < size; i++) {
+                int octave = mOctave[i];
+                c.drawText(octave + "", 2.7f, 28, p);
+                c.drawText(octave + 1 + "", 72.7f, 28, p);
                 c.translate(0, 36);
             }
             c.restore();
