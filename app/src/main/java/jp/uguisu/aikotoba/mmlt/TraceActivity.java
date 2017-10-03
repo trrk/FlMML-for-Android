@@ -81,6 +81,8 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
         private int[] mPointer;
         private ArrayList<Integer>[] mNumber;
         private double[] mEvtime;
+        private double[] mPorLen;
+        private int[] mPorDepth;
         private double mSpt;
         private byte[] mOctave;
 
@@ -108,6 +110,8 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             mPointer = new int[mTracks.size()];
             mOctave = new byte[mTracks.size()];
             mEvtime = new double[mTracks.size()];
+            mPorDepth = new int[mTracks.size()];
+            mPorLen = new double[mTracks.size()];
         }
 
         private void finish() {
@@ -123,6 +127,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
         @Override
         public void run() {
             calcSpt(120);
+            int[] porNowFreqNo = new int[mTracks.size()];
             while (!mFinish) {
                 int size = mTracks.size();
                 long now = FlMML.getStaticInstance().getNowMSec();
@@ -152,6 +157,10 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                                     mNumber[i].clear();
                                     mNumber[i].add(e.getNoteNo());
                                     break;
+                                case MStatus.PORTAMENTO:
+                                    mPorDepth[i] = e.getPorDepth();
+                                    mPorLen[i] = e.getPorLen() * mSpt;
+                                    break;
                                 case MStatus.EOT:
                                     finish();
                                     Log.v("TraceThread", "finish()");
@@ -172,14 +181,26 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
 
                 //octave
                 for (int i = 0; i < mTracks.size(); i++) {
+                    int dep = mPorDepth[i];
+                    if (dep != 0) {
+                        if (mNumber[i].isEmpty()) continue;
+                        int starttune = (mNumber[i].get(0) + dep) * 100;
+                        int milli = (int) (now - mEvtime[i]);
+                        porNowFreqNo[i] = starttune - (int) (dep * 100 * (milli / mPorLen[i]));
+                        int mkey = porNowFreqNo[i] / 100;
+                        byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
+                        if (octave < mOctave[i])
+                            mOctave[i] = octave;
+                        if (octave > mOctave[i] + 1)
+                            mOctave[i] = (byte) (octave - 1);
+                        continue;
+                    }
                     for (int key : mNumber[i]) {
                         byte octave = (byte) (key < 0 ? (key + 1) / 12 - 1 : key / 12);
-                        if (octave < mOctave[i]) {
+                        if (octave < mOctave[i])
                             mOctave[i] = octave;
-                        }
-                        if (octave > mOctave[i] + 1) {
+                        if (octave > mOctave[i] + 1)
                             mOctave[i] = (byte) (octave - 1);
-                        }
                     }
                 }
 
@@ -188,6 +209,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 drawPlayedWhiteKeys(c, p);
                 drawKeys(c, p);
                 drawPlayedBlackKeys(c, p);
+                drawPortamento(c, p, porNowFreqNo);
                 drawOctaves(c, p);
                 p.setColor(0xFFFFFFFF);
                 p.setTextSize(30);
@@ -256,7 +278,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                         if (octavepos != 0 && octavepos != 1)
                             continue;
                         x += octavepos * 70;
-                        c.drawRect(x - 2, 0, x + 3, 18, p);
+                        c.drawRect(x - 2.5f, 0, x + 2.5f, 18, p);
                     }
                 }
                 c.translate(0, 36);
@@ -289,9 +311,47 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 for (int i = 0; i < (14 + 1) * 10; i += 10) {
                     int t = i / 10 % 7;
                     if (t != 0 && t != 3)
-                        c.drawRect(i - 2, 0, i + 3, 18, p);
+                        c.drawRect(i - 2.5f, 0, i + 2.5f, 18, p);
                 }
                 c.translate(0, 36);
+            }
+            c.restore();
+        }
+
+        private void drawPortamento(Canvas c, Paint p, int[] freqNo) {
+            p.setColor(Color.BLUE);
+            c.save();
+            c.translate(0, 17 - 36);
+            for (int i = 1, size = mTracks.size(); i < size; i++) {
+                c.translate(0, 36);
+                int dep = mPorDepth[i];
+                if (dep == 0 || mNumber[i].isEmpty()) continue;
+                int start_center;
+                float now_pos;
+                {
+                    int mkey = mNumber[i].get(0) + dep;
+                    byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
+                    int octavepos = octave - mOctave[i];
+                    int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
+                    int pos = KEY_DRAW_POS[key];
+                    start_center = 3 + pos * 10 + (KEY_IS_WHITE[key] ? 5 : 0);
+                    start_center += octavepos * 70;
+                }
+                {
+                    int nowtune = freqNo[i];
+                    int mkey = nowtune / 100;
+                    byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
+                    int octavepos = octave - mOctave[i];
+                    int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
+                    int pos = KEY_DRAW_POS[key];
+                    int lower_center = 3 + pos * 10 + (KEY_IS_WHITE[key] ? 5 : 0);
+                    lower_center += octavepos * 70;
+                    int diff = KEY_IS_WHITE[key] && KEY_IS_WHITE[(key + 1) % 12] ? 10 : 5;
+                    now_pos = lower_center + diff * (float) (nowtune % 100) / 100;
+                }
+                if (start_center < 3) start_center = 3;
+                if (start_center > 143) start_center = 143;
+                c.drawRect(start_center, 20, now_pos, 27, p);
             }
             c.restore();
         }
