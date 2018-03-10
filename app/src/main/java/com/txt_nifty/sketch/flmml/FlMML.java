@@ -27,6 +27,10 @@ public class FlMML {
         return sInstance == null ? sInstance = new FlMML() : sInstance;
     }
 
+    public static FlMML getStaticInstanceIfCreated() {
+        return sInstance;
+    }
+
     public void setListener(Listener l) {
         mListener = l;
     }
