@@ -206,6 +206,13 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 //octave
                 for (int i = 0; i < mTracks.size(); i++) {
                     int dep = mPorDepth[i];
+                    for (int key : mNumber[i]) {
+                        byte octave = (byte) (key < 0 ? (key + 1) / 12 - 1 : key / 12);
+                        if (octave < mOctave[i])
+                            mOctave[i] = octave;
+                        if (octave > mOctave[i] + 1)
+                            mOctave[i] = (byte) (octave - 1);
+                    }
                     if (dep != 0) {
                         if (mNumber[i].isEmpty()) continue;
                         int starttune = (mNumber[i].get(0) + dep) * 100;
@@ -213,14 +220,6 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                         porNowFreqNo[i] = starttune - (int) (dep * 100 * (milli / mPorLen[i]));
                         int mkey = porNowFreqNo[i] / 100;
                         byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
-                        if (octave < mOctave[i])
-                            mOctave[i] = octave;
-                        if (octave > mOctave[i] + 1)
-                            mOctave[i] = (byte) (octave - 1);
-                        continue;
-                    }
-                    for (int key : mNumber[i]) {
-                        byte octave = (byte) (key < 0 ? (key + 1) / 12 - 1 : key / 12);
                         if (octave < mOctave[i])
                             mOctave[i] = octave;
                         if (octave > mOctave[i] + 1)
@@ -251,7 +250,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 }
                 mHolder.unlockCanvasAndPost(c);
                 try {
-                    Thread.sleep(3);
+                    Thread.sleep(30);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
