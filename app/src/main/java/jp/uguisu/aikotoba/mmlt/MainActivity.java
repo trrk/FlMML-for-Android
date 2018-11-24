@@ -38,7 +38,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     static String mmlText = null;
 
     public static final int DIALOG_DOWNLOAD = 1;
-    public static final String PIKOKAKIKO_BASE = "http://dic.nicovideo.jp/mml/";
+    public static final String PIKOKAKIKO_BASE = "https://dic.nicovideo.jp/mml/";
     FlMML mFlmml;
     Toast mToast;
     Button mPlayButton;
