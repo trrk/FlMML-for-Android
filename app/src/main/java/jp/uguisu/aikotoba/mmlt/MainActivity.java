@@ -15,6 +15,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -33,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeListener, View.OnClickListener, View.OnLongClickListener {
+
+    static String mmlText = null;
 
     public static final int DIALOG_DOWNLOAD = 1;
     public static final String PIKOKAKIKO_BASE = "http://dic.nicovideo.jp/mml/";
@@ -142,6 +145,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
             mToast.show();
         }
 
+
         ((ListView) findViewById(R.id.warnings)).setAdapter(mWarnAdapter);
         ((SeekBar) findViewById(R.id.volumebar)).setOnSeekBarChangeListener(this);
         mPlayButton = (Button) findViewById(R.id.ppbutton);
@@ -152,6 +156,20 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         stopbutton.setOnClickListener(this);
         stopbutton.setOnLongClickListener(this);
         findViewById(R.id.setting).setOnClickListener(this);
+
+        if (mmlText != null)
+            mMmlField.setText(mmlText);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        //EditTextのonSaveInstanceStateを呼ばれないよう一時削除
+        ViewGroup parent = (ViewGroup) mMmlField.getParent();
+        parent.removeView(mMmlField);
+
+        super.onSaveInstanceState(outState);
+
+        parent.addView(mMmlField);
     }
 
     @Override
@@ -187,6 +205,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         if (binder != null)
             binder.activityClosed();
         unbindService(connection);
+        mmlText = mMmlField.getText().toString();
     }
 
     @Override
