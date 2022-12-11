@@ -71,7 +71,7 @@ public class BackgroundService extends Service {
             String text = title.length() == 0 ? "unknown title" : title;
 
             Intent activityIntent = new Intent(context, MainActivity.class);
-            PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, activityIntent, 0);
+            PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, activityIntent, PendingIntent.FLAG_IMMUTABLE);
 
             return Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB ?
                     createHoneycombNotification(context, text, pendingIntent) :
