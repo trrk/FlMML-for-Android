@@ -189,7 +189,12 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                     }
                 }
                 StringBuilder sb = new StringBuilder();
-                Canvas c = mHolder.lockCanvas();
+                final Canvas c;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    c = mHolder.lockHardwareCanvas();
+                } else {
+                    c = mHolder.lockCanvas();
+                }
                 if (c == null) continue;
                 float scale = (c.getWidth() / 286f);
                 // fps
