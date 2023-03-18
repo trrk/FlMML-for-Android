@@ -135,6 +135,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             long fpsTimeStart = System.currentTimeMillis();
             int fpsFrameCount = 0;
             Paint p = new Paint();
+            StringBuilder sb = new StringBuilder();
             while (!mFinish) {
                 int size = mTracks.size();
                 long now = FlMML.getStaticInstance().getNowMSec();
@@ -190,7 +191,6 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                             break;
                     }
                 }
-                StringBuilder sb = new StringBuilder();
                 final Canvas c;
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     c = mHolder.lockHardwareCanvas();
