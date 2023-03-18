@@ -84,11 +84,19 @@ public class BackgroundService extends Service {
                     new Notification.Builder(context, CHANNEL_ID) :
                     new Notification.Builder(context);
 
-            return builder.setSmallIcon(R.drawable.ic_notification)
+            // 通知について
+            // 実行時にこちらからは権限を求めない
+            // Android 13 以降で通知を見るには、手動で通知 ON に設定する必要があると思われる
+            builder.setSmallIcon(R.drawable.ic_notification)
                     .setContentTitle(TITLE)
                     .setContentText(text)
-                    .setContentIntent(pendingIntent)
-                    .getNotification();
+                    .setContentIntent(pendingIntent);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE);
+            }
+
+            return builder.getNotification();
         }
 
         @TargetApi(Build.VERSION_CODES.ECLAIR)
