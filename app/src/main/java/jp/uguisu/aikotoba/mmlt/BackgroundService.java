@@ -90,8 +90,9 @@ public class BackgroundService extends Service {
             builder.setSmallIcon(R.drawable.ic_notification)
                     .setContentTitle(TITLE)
                     .setContentText(text)
-                    .setContentIntent(pendingIntent);
-
+                    .setContentIntent(pendingIntent)
+                    .setOngoing(true);
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE);
             }
