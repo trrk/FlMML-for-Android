@@ -117,7 +117,9 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
         }
 
         private void finish() {
-            mFinish = true;
+            synchronized (this) {
+                mFinish = true;
+            }
         }
 
         private void calcSpt(double bpm) {
@@ -253,11 +255,14 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                     c.drawText(sb.toString(), 150, 17 + 36 * (i) - 14, p);
                     sb.setLength(0);
                 }
-                mHolder.unlockCanvasAndPost(c);
-                try {
-                    Thread.sleep(30);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+
+                // lockCanvas / lockHardwareCanvas ~ unlockCanvasAndPost の間に surfaceDestroyed が呼ばれて落ちたことがあった
+                // その対策が講じられている
+                synchronized (this) {
+                    if (mFinish) {
+                        break;
+                    }
+                    mHolder.unlockCanvasAndPost(c);
                 }
             }
         }
