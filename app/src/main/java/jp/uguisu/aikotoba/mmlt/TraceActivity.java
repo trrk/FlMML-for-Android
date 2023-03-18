@@ -197,7 +197,13 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 } else {
                     c = mHolder.lockCanvas();
                 }
-                if (c == null) continue;
+                if (c == null) {
+                    // mFinish == true のはず、そうでなければ例外を投げる
+                    if (!mFinish) {
+                        throw new RuntimeException();
+                    }
+                    break;
+                }
                 float scale = (c.getWidth() / 286f);
                 // fps
                 p.setColor(0xFFFFFFFF);
