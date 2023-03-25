@@ -15,13 +15,9 @@ public class MOscSine extends MOscMod {
     public static void boot() {
         if (sInit != 0) return;
         double d0 = 2.0 * Math.PI / TABLE_LEN;
-        double p0;
-        int i;
-        sTable = new double[MAX_WAVE][];
-        for (i = 0; i < MAX_WAVE; i++) {
-            sTable[i] = new double[TABLE_LEN];
-        }
-        for (i = 0, p0 = 0.0; i < TABLE_LEN; i++) {
+        sTable = new double[MAX_WAVE][TABLE_LEN];
+        double p0 = 0.0;
+        for (int i = 0; i < TABLE_LEN; i++) {
             sTable[0][i] = Math.sin(p0);
             sTable[1][i] = Math.max(0.0, sTable[0][i]);
             sTable[2][i] = (sTable[0][i] >= 0.0) ? sTable[0][i] : sTable[0][i] * -1.0;
@@ -43,18 +39,16 @@ public class MOscSine extends MOscMod {
     }
 
     public void getSamples(double[] samples, int start, int end) {
-        int i;
         double[] tbl = sTable[mWaveNo];
-        for (i = start; i < end; i++) {
+        for (int i = start; i < end; i++) {
             samples[i] = tbl[mPhase >> PHASE_SFT];
             mPhase = (mPhase + mFreqShift) & PHASE_MSK;
         }
     }
 
     public void getSamplesWithSyncIn(double[] samples, boolean[] syncin, int start, int end) {
-        int i;
         double[] tbl = sTable[mWaveNo];
-        for (i = start; i < end; i++) {
+        for (int i = start; i < end; i++) {
             if (syncin[i]) {
                 resetPhase();
             }
@@ -64,9 +58,8 @@ public class MOscSine extends MOscMod {
     }
 
     public void getSamplesWithSyncOut(double[] samples, boolean[] syncout, int start, int end) {
-        int i;
         double[] tbl = sTable[mWaveNo];
-        for (i = start; i < end; i++) {
+        for (int i = start; i < end; i++) {
             samples[i] = tbl[mPhase >> PHASE_SFT];
             mPhase += mFreqShift;
             syncout[i] = (mPhase > PHASE_MSK);
