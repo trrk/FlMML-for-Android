@@ -1,69 +1,83 @@
-package com.txt_nifty.sketch.flmml;
+package com.txt_nifty.sketch.flmml
 
-public class MOscTriangle extends MOscMod {
-    public static final int MAX_WAVE = 2;
-    protected static int sInit = 0;
-    protected static double[][] sTable;
-    protected int mWaveNo;
+class MOscTriangle : MOscMod() {
+    protected var mWaveNo = 0
 
-    public MOscTriangle() {
-        boot();
-        super_init();
-        setWaveNo(0);
+    init {
+        boot()
+        super_init()
+        setWaveNo(0)
     }
 
-    public static void boot() {
-        if (sInit != 0) return;
-        double d0 = 1.0 / TABLE_LEN;
-        sTable = new double[MAX_WAVE][TABLE_LEN];
-        double p0 = 0.0;
-        for (int i = 0; i < TABLE_LEN; i++) {
-            sTable[0][i] = (p0 < 0.50) ? (1.0 - 4.0 * p0) : (1.0 - 4.0 * (1.0 - p0));
-            sTable[1][i] = (p0 < 0.25) ? (0.0 - 4.0 * p0) : ((p0 < 0.75) ? (-2.0 + 4.0 * p0) : (4.0 - 4.0 * p0));
-            p0 += d0;
-        }
-        sInit = 1;
+    override fun getNextSample(): Double {
+        val `val` = sTable[mWaveNo][mPhase shr PHASE_SFT]
+        mPhase = (mPhase + mFreqShift) and PHASE_MSK
+        return `val`
     }
 
-    public double getNextSample() {
-        double val = sTable[mWaveNo][mPhase >> PHASE_SFT];
-        mPhase = (mPhase + mFreqShift) & PHASE_MSK;
-        return val;
+    override fun getNextSampleOfs(ofs: Int): Double {
+        val `val` = sTable[mWaveNo][((mPhase + ofs) and PHASE_MSK) shr PHASE_SFT]
+        mPhase = (mPhase + mFreqShift) and PHASE_MSK
+        return `val`
     }
 
-    public double getNextSampleOfs(int ofs) {
-        double val = sTable[mWaveNo][((mPhase + ofs) & PHASE_MSK) >> PHASE_SFT];
-        mPhase = (mPhase + mFreqShift) & PHASE_MSK;
-        return val;
-    }
-
-    public void getSamples(double[] samples, int start, int end) {
-        for (int i = start; i < end; i++) {
-            samples[i] = sTable[mWaveNo][mPhase >> PHASE_SFT];
-            mPhase = (mPhase + mFreqShift) & PHASE_MSK;
+    override fun getSamples(samples: DoubleArray, start: Int, end: Int) {
+        for (i in start until end) {
+            samples[i] = sTable[mWaveNo][mPhase shr PHASE_SFT]
+            mPhase = (mPhase + mFreqShift) and PHASE_MSK
         }
     }
 
-    public void getSamplesWithSyncIn(double[] samples, boolean[] syncin, int start, int end) {
-        for (int i = start; i < end; i++) {
+    override fun getSamplesWithSyncIn(
+        samples: DoubleArray,
+        syncin: BooleanArray,
+        start: Int,
+        end: Int
+    ) {
+        for (i in start until end) {
             if (syncin[i]) {
-                resetPhase();
+                resetPhase()
             }
-            samples[i] = sTable[mWaveNo][mPhase >> PHASE_SFT];
-            mPhase = (mPhase + mFreqShift) & PHASE_MSK;
+            samples[i] = sTable[mWaveNo][mPhase shr PHASE_SFT]
+            mPhase = (mPhase + mFreqShift) and PHASE_MSK
         }
     }
 
-    public void getSamplesWithSyncOut(double[] samples, boolean[] syncout, int start, int end) {
-        for (int i = start; i < end; i++) {
-            samples[i] = sTable[mWaveNo][mPhase >> PHASE_SFT];
-            mPhase += mFreqShift;
-            syncout[i] = (mPhase > PHASE_MSK);
-            mPhase &= PHASE_MSK;
+    override fun getSamplesWithSyncOut(
+        samples: DoubleArray,
+        syncout: BooleanArray,
+        start: Int,
+        end: Int
+    ) {
+        for (i in start until end) {
+            samples[i] = sTable[mWaveNo][mPhase shr PHASE_SFT]
+            mPhase += mFreqShift
+            syncout[i] = mPhase > PHASE_MSK
+            mPhase = mPhase and PHASE_MSK
         }
     }
 
-    public void setWaveNo(int waveNo) {
-        mWaveNo = Math.min(waveNo, MAX_WAVE - 1);
+    override fun setWaveNo(waveNo: Int) {
+        mWaveNo = Math.min(waveNo, MAX_WAVE - 1)
+    }
+
+    companion object {
+        const val MAX_WAVE = 2
+        protected var sInit = 0
+        protected lateinit var sTable: Array<DoubleArray>
+        @JvmStatic
+        fun boot() {
+            if (sInit != 0) return
+            val d0 = 1.0 / TABLE_LEN
+            sTable = Array(MAX_WAVE) { DoubleArray(TABLE_LEN) }
+            var p0 = 0.0
+            for (i in 0 until TABLE_LEN) {
+                sTable[0][i] = if (p0 < 0.50) 1.0 - 4.0 * p0 else 1.0 - 4.0 * (1.0 - p0)
+                sTable[1][i] =
+                    if (p0 < 0.25) 0.0 - 4.0 * p0 else if (p0 < 0.75) -2.0 + 4.0 * p0 else 4.0 - 4.0 * p0
+                p0 += d0
+            }
+            sInit = 1
+        }
     }
 }
