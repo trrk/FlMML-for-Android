@@ -1,84 +1,44 @@
-package com.txt_nifty.sketch.flmml;
+package com.txt_nifty.sketch.flmml
 
-
-public interface IChannel {
-    void setExpression(int ex);
-
-    void setVelocity(int velocity);
-
-    void setNoteNo(int noteNo, boolean tie);
-
-    void setNoteNo(int noteNo);//setNoteNo(noteNo,true);
-
-    void setDetune(int detune);
-
-    void noteOn(int noteNo, int velocity);
-
-    void noteOff(int noteNo);
-
-    void close();
-
-    void setNoiseFreq(double frequency);
-
-    void setForm(int form, int subform);
-
-    void setEnvelope1Atk(int attack);
-
-    void setEnvelope1Point(int time, int level);
-
-    void setEnvelope1Rel(int release);
-
-    void setEnvelope2Atk(int attack);
-
-    void setEnvelope2Point(int time, int level);
-
-    void setEnvelope2Rel(int release);
-
-    void setPWM(int pwm);
-
-    void setPan(int pan);
-
-    void setFormant(int vowel);
-
-    void setLFOFMSF(int form, int subform);
-
-    void setLFODPWD(int depth, double freq);
-
-    void setLFODLTM(int delay, int time);
-
-    void setLFOTarget(int target);
-
-    void setLpfSwtAmt(int swt, int amt);
-
-    void setLpfFrqRes(int frq, int res);
-
-    void setVolMode(int m);
-
-    void setInput(int i, int p);
-
-    void setOutput(int o, int p);
-
-    void setRing(int s, int p);
-
-    void setSync(int m, int p);
-
-    void setPortamento(int depth, double len);
-
-    void setMidiPort(int mode);
-
-    void setMidiPortRate(double rate);
-
-    void setPortBase(int base);
-
-    void setSoundOff();
-
-    int getVoiceCount();
-
-    void setVoiceLimit(int voiceLimit);
-
-    void setHwLfo(int data);
-
-    void reset();
-
-    void getSamples(double[] samples, int max, int start, int delta);
+interface IChannel {
+    fun setExpression(ex: Int)
+    fun setVelocity(velocity: Int)
+    fun setNoteNo(noteNo: Int, tie: Boolean)
+    fun setNoteNo(noteNo: Int) //setNoteNo(noteNo,true);
+    fun setDetune(detune: Int)
+    fun noteOn(noteNo: Int, velocity: Int)
+    fun noteOff(noteNo: Int)
+    fun close()
+    fun setNoiseFreq(frequency: Double)
+    fun setForm(form: Int, subform: Int)
+    fun setEnvelope1Atk(attack: Int)
+    fun setEnvelope1Point(time: Int, level: Int)
+    fun setEnvelope1Rel(release: Int)
+    fun setEnvelope2Atk(attack: Int)
+    fun setEnvelope2Point(time: Int, level: Int)
+    fun setEnvelope2Rel(release: Int)
+    fun setPWM(pwm: Int)
+    fun setPan(pan: Int)
+    fun setFormant(vowel: Int)
+    fun setLFOFMSF(form: Int, subform: Int)
+    fun setLFODPWD(depth: Int, freq: Double)
+    fun setLFODLTM(delay: Int, time: Int)
+    fun setLFOTarget(target: Int)
+    fun setLpfSwtAmt(swt: Int, amt: Int)
+    fun setLpfFrqRes(frq: Int, res: Int)
+    fun setVolMode(m: Int)
+    fun setInput(i: Int, p: Int)
+    fun setOutput(o: Int, p: Int)
+    fun setRing(s: Int, p: Int)
+    fun setSync(m: Int, p: Int)
+    fun setPortamento(depth: Int, len: Double)
+    fun setMidiPort(mode: Int)
+    fun setMidiPortRate(rate: Double)
+    fun setPortBase(base: Int)
+    fun setSoundOff()
+    val voiceCount: Int
+    fun setVoiceLimit(voiceLimit: Int)
+    fun setHwLfo(data: Int)
+    fun reset()
+    fun getSamples(samples: DoubleArray?, max: Int, start: Int, delta: Int)
 }
