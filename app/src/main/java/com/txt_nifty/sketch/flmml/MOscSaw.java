@@ -15,13 +15,9 @@ public class MOscSaw extends MOscMod {
     public static void boot() {
         if (sInit != 0) return;
         double d0 = 1.0 / TABLE_LEN;
-        double p0;
-        int i;
-        sTable = new double[MAX_WAVE][];
-        for (i = 0; i < MAX_WAVE; i++) {
-            sTable[i] = new double[TABLE_LEN];
-        }
-        for (i = 0, p0 = 0.0; i < TABLE_LEN; i++) {
+        sTable = new double[MAX_WAVE][TABLE_LEN];
+        double p0 = 0.0;
+        for (int i = 0; i < TABLE_LEN; i++) {
             sTable[0][i] = p0 * 2.0 - 1.0;
             sTable[1][i] = (p0 < 0.5) ? 2.0 * p0 : 2.0 * p0 - 2.0;
             p0 += d0;
@@ -42,16 +38,14 @@ public class MOscSaw extends MOscMod {
     }
 
     public void getSamples(double[] samples, int start, int end) {
-        int i;
-        for (i = start; i < end; i++) {
+        for (int i = start; i < end; i++) {
             samples[i] = sTable[mWaveNo][mPhase >> PHASE_SFT];
             mPhase = (mPhase + mFreqShift) & PHASE_MSK;
         }
     }
 
     public void getSamplesWithSyncIn(double[] samples, boolean[] syncin, int start, int end) {
-        int i;
-        for (i = start; i < end; i++) {
+        for (int i = start; i < end; i++) {
             if (syncin[i]) {
                 resetPhase();
             }
@@ -61,8 +55,7 @@ public class MOscSaw extends MOscMod {
     }
 
     public void getSamplesWithSyncOut(double[] samples, boolean[] syncout, int start, int end) {
-        int i;
-        for (i = start; i < end; i++) {
+        for (int i = start; i < end; i++) {
             samples[i] = sTable[mWaveNo][mPhase >> PHASE_SFT];
             mPhase += mFreqShift;
             syncout[i] = (mPhase > PHASE_MSK);
