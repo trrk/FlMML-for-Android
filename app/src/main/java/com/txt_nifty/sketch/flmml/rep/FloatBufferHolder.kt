@@ -1,31 +1,32 @@
-package com.txt_nifty.sketch.flmml.rep;
+package com.txt_nifty.sketch.flmml.rep
 
-import android.annotation.TargetApi;
-import android.media.AudioTrack;
-import android.os.Build;
+import android.annotation.TargetApi
+import android.media.AudioTrack
+import android.os.Build
 
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-public class FloatBufferHolder implements ConvertedBufferHolder {
+class FloatBufferHolder internal constructor(size: Int) : ConvertedBufferHolder {
+    private val buffer: FloatArray
 
-    private final float[] buffer;
-
-    FloatBufferHolder(int size) {
-        buffer = new float[size];
+    init {
+        buffer = FloatArray(size)
     }
 
-    @Override
-    public synchronized void convertAndSet(double[] doubleBuf) {
-        float[] floatBuf = buffer;
-        for (int i = 0, fin = doubleBuf.length; i < fin; i++)
-            floatBuf[i] = (float) doubleBuf[i];
+    @Synchronized
+    override fun convertAndSet(doubleBuf: DoubleArray) {
+        val floatBuf = buffer
+        for (i in doubleBuf.indices) {
+            floatBuf[i] = doubleBuf[i].toFloat()
+        }
     }
 
-    @Override
-    public synchronized int writeTo(AudioTrack a, int s, int l) {
-        return a.write(buffer, s, l, AudioTrack.WRITE_BLOCKING);
+    @Synchronized
+    override fun writeTo(a: AudioTrack, s: Int, l: Int): Int {
+        return a.write(buffer, s, l, AudioTrack.WRITE_BLOCKING)
     }
 
-/*  //ByteBuffer版、たぶんメモリ食うだけ
+/*
+    //ByteBuffer版 (Java)、たぶんメモリ食うだけ
     private final float[] arraybuffer;
     private final FloatBuffer buffer;
     private final ByteBuffer bytebuffer;
