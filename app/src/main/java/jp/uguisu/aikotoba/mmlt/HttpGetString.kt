@@ -1,55 +1,49 @@
-package jp.uguisu.aikotoba.mmlt;
+package jp.uguisu.aikotoba.mmlt
 
-import android.os.Build;
+import android.os.Build
+import java.io.IOException
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+import java.nio.charset.Charset
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
-import java.nio.charset.Charset;
-
-public class HttpGetString {
-
-    private static final int CONNECT_TIME_OUT = 5000;
-    private static final int READ_TIME_OUT = 15000;
-
-    static {
-        if (Integer.parseInt(Build.VERSION.SDK) < Build.VERSION_CODES.FROYO) {
-            System.setProperty("http.keepAlive", "false");
-        }
-    }
-
-    public String get(String urlstr) throws IOException {
-        HttpURLConnection con = null;
-        InputStreamReader reader = null;
-        try {
-            URL url = new URL(urlstr);
-            URLConnection urlCon = url.openConnection();
-            if (!(urlCon instanceof HttpURLConnection))
-                throw new IOException("Not Http");
-            con = (HttpURLConnection) urlCon;
-            con.setConnectTimeout(CONNECT_TIME_OUT);
-            con.setReadTimeout(READ_TIME_OUT);
-            int code = con.getResponseCode();
-            if (code != HttpURLConnection.HTTP_OK)
-                throw new IOException("Not 200 OK : " + code);
-            InputStream stream = con.getInputStream();
-            if (stream == null) return "";
+class HttpGetString {
+    @Throws(IOException::class)
+    operator fun get(urlstr: String?): String {
+        var con: HttpURLConnection? = null
+        var reader: InputStreamReader? = null
+        return try {
+            val url = URL(urlstr)
+            val urlCon = url.openConnection() as? HttpURLConnection ?: throw IOException("Not Http")
+            con = urlCon
+            con.connectTimeout = CONNECT_TIME_OUT
+            con.readTimeout = READ_TIME_OUT
+            val code = con.responseCode
+            if (code != HttpURLConnection.HTTP_OK) throw IOException("Not 200 OK : $code")
+            val stream = con.inputStream ?: return ""
             //InputStreamをStringに。
-            reader = new InputStreamReader(stream, Charset.forName("UTF-8"));
-            StringBuilder builder = new StringBuilder();
-            char[] buf = new char[10240];
-            int numRead;
-            while (0 <= (numRead = reader.read(buf))) {
-                builder.append(buf, 0, numRead);
+            reader = InputStreamReader(stream, Charset.forName("UTF-8"))
+            val builder = StringBuilder()
+            val buf = CharArray(10240)
+            var numRead: Int
+            while (0 <= reader.read(buf).also { numRead = it }) {
+                builder.append(buf, 0, numRead)
             }
-            return builder.toString();
+            builder.toString()
         } finally {
-            if (reader != null) reader.close();
-            if (con != null) con.disconnect();
+            reader?.close()
+            con?.disconnect()
         }
     }
 
+    companion object {
+        private const val CONNECT_TIME_OUT = 5000
+        private const val READ_TIME_OUT = 15000
+
+        init {
+            if (Build.VERSION.SDK.toInt() < Build.VERSION_CODES.FROYO) {
+                System.setProperty("http.keepAlive", "false")
+            }
+        }
+    }
 }
