@@ -191,6 +191,11 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                             break;
                     }
                 }
+
+                if (mFinish) {
+                    break;
+                }
+
                 final Canvas c;
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     c = mHolder.lockHardwareCanvas();
@@ -258,8 +263,11 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                     sb.setLength(0);
                 }
 
-                // lockCanvas / lockHardwareCanvas ~ unlockCanvasAndPost の間に surfaceDestroyed が呼ばれて落ちたことがあった
-                // その対策が講じられている
+                // lockCanvas / lockHardwareCanvas ~ unlockCanvasAndPost の間に surfaceDestroyed が呼ばれて、
+                // unlockCanvasAndPost で例外が起きることがあった
+                // その対策を講じてある
+                // また、間で surfaceDestroyed が呼ばれていないのに unlockCanvasAndPost を呼ばないでいると、
+                // ANR となることがあった (環境によるかもしれない)
                 synchronized (this) {
                     if (mFinish) {
                         break;
