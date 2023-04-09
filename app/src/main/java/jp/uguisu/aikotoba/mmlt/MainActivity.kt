@@ -28,18 +28,18 @@ import java.io.IOException
 class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
     OnLongClickListener {
     private var mFlmml: FlMML? = null
-    private var mToast: Toast? = null
-    private var mPlayButton: Button? = null
+    private lateinit var mToast: Toast
+    private lateinit var mPlayButton: Button
     private var buttonPlay = true
-    private var mListener: MmlEventListener? = null
-    private var mMmlField: EditText? = null
-    private var mHandler: Handler? = null
+    private lateinit var mListener: MmlEventListener
+    private lateinit var mMmlField: EditText
+    private val mHandler = Handler()
     private var mDl: Downloader? = null
     private val mGetter = HttpGetString()
     private val mRunRunnable = RunRunnable()
-    private var mWarnAdapter: ArrayAdapter<String>? = null
+    private lateinit var mWarnAdapter: ArrayAdapter<String>
     private var binder: ServiceBinder? = null
-    var connection: ServiceConnection = object : ServiceConnection {
+    val connection: ServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
             binder = service as ServiceBinder
         }
@@ -51,8 +51,8 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
         when (view.id) {
             R.id.ppbutton -> {
                 if (mDl != null) {
-                    mToast!!.setText(R.string.toast_canceled)
-                    mToast!!.show()
+                    mToast.setText(R.string.toast_canceled)
+                    mToast.show()
                     mDl!!.cancel(true)
                     finishDownload()
                 }
@@ -83,9 +83,9 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
                     }
                     mDl = Downloader()
                     mDl!!.execute(url)
-                    mWarnAdapter!!.clear()
-                    mWarnAdapter!!.add(getString(R.string.downloading, url))
-                    mMmlField!!.isEnabled = false
+                    mWarnAdapter.clear()
+                    mWarnAdapter.add(getString(R.string.downloading, url))
+                    mMmlField.isEnabled = false
                 }.create()
         }
         throw IllegalArgumentException("unexpected id: $id")
@@ -109,7 +109,6 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
         setContentView(R.layout.activity_main)
         volumeControlStream = AudioManager.STREAM_MUSIC
 
-        mHandler = Handler()
         mListener = MmlEventListener()
         mToast = Toast.makeText(applicationContext, null, Toast.LENGTH_SHORT)
         mWarnAdapter = object : ArrayAdapter<String>(
@@ -124,8 +123,8 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
         try {
             mFlmml = FlMML.getStaticInstance()
         } catch (e: OutOfMemoryError) {
-            mToast!!.setText(R.string.out_of_memory_initialization)
-            mToast!!.show()
+            mToast.setText(R.string.out_of_memory_initialization)
+            mToast.show()
         }
 
         (findViewById<View>(R.id.warnings) as ListView).adapter = mWarnAdapter
@@ -133,20 +132,20 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
         mPlayButton = findViewById<View>(R.id.ppbutton) as Button
         mMmlField = findViewById<View>(R.id.input) as EditText
         val stopbutton = findViewById<View>(R.id.stopbutton)
-        mPlayButton!!.setOnClickListener(this)
-        mPlayButton!!.setOnLongClickListener(this)
+        mPlayButton.setOnClickListener(this)
+        mPlayButton.setOnLongClickListener(this)
         stopbutton.setOnClickListener(this)
         stopbutton.setOnLongClickListener(this)
         findViewById<View>(R.id.setting).setOnClickListener(this)
 
         if (mmlText != null) {
-            mMmlField!!.setText(mmlText)
+            mMmlField.setText(mmlText)
         }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         //EditTextのonSaveInstanceStateを呼ばれないよう一時削除
-        val parent = mMmlField!!.parent as ViewGroup
+        val parent = mMmlField.parent as ViewGroup
         parent.removeView(mMmlField)
 
         super.onSaveInstanceState(outState)
@@ -168,11 +167,11 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
         if (mFlmml == null) return
         if (mFlmml!!.isPlaying) {
             buttonPlay = false
-            mListener!!.ispause = true
+            mListener.ispause = true
         } else {
             buttonPlay = true
         }
-        mListener!!.togglePlaying()
+        mListener.togglePlaying()
         mFlmml!!.setListener(mListener)
     }
 
@@ -185,7 +184,7 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
         super.onStop()
         if (binder != null) binder!!.activityClosed()
         unbindService(connection)
-        mmlText = mMmlField!!.text.toString()
+        mmlText = mMmlField.text.toString()
     }
 
     override fun onDestroy() {
@@ -206,8 +205,8 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
 
         val str = (findViewById<View>(R.id.input) as TextView).text.toString()
         if (!mFlmml!!.isPaused) {
-            mListener!!.mTextRunnable.set(getString(R.string.compiling)).run()
-            mHandler!!.post(mRunRunnable.set(str))
+            mListener.mTextRunnable.set(getString(R.string.compiling)).run()
+            mHandler.post(mRunRunnable.set(str))
         } else {
             mFlmml!!.play(str)
             if (binder != null) binder!!.startPlaying()
@@ -225,8 +224,8 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
     }
 
     override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
-        mToast!!.setText(Integer.toString(i))
-        mToast!!.show()
+        mToast.setText(Integer.toString(i))
+        mToast.show()
         mFlmml!!.setMasterVolume(i)
     }
 
@@ -234,8 +233,8 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
 
     override fun onStopTrackingTouch(seekBar: SeekBar) {
         val i = seekBar.progress
-        mToast!!.setText(Integer.toString(i))
-        mToast!!.show()
+        mToast.setText(Integer.toString(i))
+        mToast.show()
         mFlmml!!.setMasterVolume(i)
     }
 
@@ -254,7 +253,7 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
             }
             R.id.setting -> startActivity(Intent(applicationContext, SettingActivity::class.java))
             else -> {
-                mPlayButton!!.setText(R.string.play)
+                mPlayButton.setText(R.string.play)
                 buttonPlay = true
                 stop()
             }
@@ -262,8 +261,8 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
     }
 
     private fun finishDownload() {
-        mMmlField!!.isEnabled = true
-        mWarnAdapter!!.clear()
+        mMmlField.isEnabled = true
+        mWarnAdapter.clear()
         mDl = null
     }
 
@@ -283,15 +282,15 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
 
         override fun onPostExecute(s: String?) {
             val id = if (err == null) R.string.toast_succeed else R.string.toast_failed
-            mToast!!.setText(id)
-            mToast!!.show()
+            mToast.setText(id)
+            mToast.show()
             finishDownload()
             if (err == null) {
-                mMmlField!!.setText(s)
+                mMmlField.setText(s)
             } else {
-                mWarnAdapter!!.add(getString(R.string.failed_to_download))
+                mWarnAdapter.add(getString(R.string.failed_to_download))
                 val message = err!!.message
-                if (message != null) mWarnAdapter!!.add(message) else mWarnAdapter!!.add(err!!.javaClass.simpleName)
+                if (message != null) mWarnAdapter.add(message) else mWarnAdapter.add(err!!.javaClass.simpleName)
             }
         }
     }
@@ -302,17 +301,17 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
         private val v: TextView = findViewById<View>(R.id.ppbutton) as Button
 
         override fun onTextChanged(text: String) {
-            mHandler!!.post(mTextRunnable.set(text))
+            mHandler.post(mTextRunnable.set(text))
         }
 
         override fun onCompileCompleted(warnings: String) {
-            mWarnAdapter!!.clear()
+            mWarnAdapter.clear()
             if (warnings != "") {
                 val s = warnings.split("\n".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
                 var i = 0
                 val len = s.size
                 while (i < len) {
-                    mWarnAdapter!!.add(s[i])
+                    mWarnAdapter.add(s[i])
                     i++
                 }
             } else {
@@ -321,16 +320,16 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
                 val comment = mFlmml!!.metaComment
                 val coding = mFlmml!!.metaCoding
                 if (title != "") {
-                    mWarnAdapter!!.add("-Title-\n$title")
+                    mWarnAdapter.add("-Title-\n$title")
                 }
                 if (artist != "") {
-                    mWarnAdapter!!.add("-Artist-\n$artist")
+                    mWarnAdapter.add("-Artist-\n$artist")
                 }
                 if (comment != "") {
-                    mWarnAdapter!!.add("-Comment-\n$comment")
+                    mWarnAdapter.add("-Comment-\n$comment")
                 }
                 if (coding != "") {
-                    mWarnAdapter!!.add("-Coding-\n$coding")
+                    mWarnAdapter.add("-Coding-\n$coding")
                 }
             }
         }
@@ -373,16 +372,16 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
         override fun run() {
             try {
                 mFlmml!!.play(s)
-                mListener!!.mTextRunnable.set("").run()
+                mListener.mTextRunnable.set("").run()
                 if (binder != null) binder!!.startPlaying()
             } catch (e: OutOfMemoryError) {
                 //メモリ解放
                 if (binder != null) binder!!.stopPlaying()
                 mFlmml!!.play("")
                 mFlmml!!.stop()
-                mPlayButton!!.setText(R.string.play)
+                mPlayButton.setText(R.string.play)
                 buttonPlay = true
-                mListener!!.mTextRunnable.set(getString(R.string.out_of_memory_compile)).run()
+                mListener.mTextRunnable.set(getString(R.string.out_of_memory_compile)).run()
             }
         }
     }
