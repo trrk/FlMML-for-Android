@@ -8,7 +8,7 @@ android {
     compileSdkVersion 33
 
     defaultConfig {
-        minSdkVersion 4
+        minSdkVersion 14
         targetSdkVersion 33
 
         versionCode 10
@@ -26,4 +26,7 @@ android {
 }
 
 dependencies {
+    def activity_version = "1.7.0"
+
+    implementation "androidx.activity:activity-ktx:$activity_version"
 }
