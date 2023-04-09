@@ -35,7 +35,6 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
     private lateinit var mMmlField: EditText
     private val mHandler = Handler()
     private var mDl: Downloader? = null
-    private val mGetter = HttpGetString()
     private val mRunRunnable = RunRunnable()
     private lateinit var mWarnAdapter: ArrayAdapter<String>
     private var binder: ServiceBinder? = null
@@ -269,8 +268,9 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
     private inner class Downloader : AsyncTask<String, Void?, String?>() {
         @Volatile
         private var err: IOException? = null
+        private val mGetter = HttpGetString()
 
-        protected override fun doInBackground(vararg strings: String): String? {
+        override fun doInBackground(vararg strings: String): String? {
             var res: String? = null
             try {
                 res = mGetter[strings[0]]
