@@ -1,6 +1,5 @@
 package jp.uguisu.aikotoba.mmlt
 
-import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.ComponentName
@@ -8,7 +7,6 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.media.AudioFormat
 import android.media.AudioManager
-import android.os.AsyncTask
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -19,13 +17,17 @@ import android.view.ViewGroup
 import android.view.Window
 import android.widget.*
 import android.widget.SeekBar.OnSeekBarChangeListener
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
 import com.txt_nifty.sketch.flmml.FlMML
 import com.txt_nifty.sketch.flmml.MSequencer
 import com.txt_nifty.sketch.flmml.rep.Sound
 import jp.uguisu.aikotoba.mmlt.BackgroundService.ServiceBinder
+import kotlinx.coroutines.*
 import java.io.IOException
+import java.lang.Runnable
 
-class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
+class MainActivity : ComponentActivity(), OnSeekBarChangeListener, View.OnClickListener,
     OnLongClickListener {
     private var mFlmml: FlMML? = null
     private lateinit var mToast: Toast
@@ -34,7 +36,7 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
     private lateinit var mListener: MmlEventListener
     private lateinit var mMmlField: EditText
     private val mHandler = Handler()
-    private var mDl: Downloader? = null
+    private var downloadJob: Job? = null
     private val mRunRunnable = RunRunnable()
     private lateinit var mWarnAdapter: ArrayAdapter<String>
     private var binder: ServiceBinder? = null
@@ -49,11 +51,11 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
     override fun onLongClick(view: View): Boolean {
         when (view.id) {
             R.id.ppbutton -> {
-                if (mDl != null) {
+                downloadJob?.let {
                     mToast.setText(R.string.toast_canceled)
                     mToast.show()
-                    mDl!!.cancel(true)
-                    finishDownload()
+
+                    cancelDownload()
                 }
                 showDialog(DIALOG_DOWNLOAD)
                 return true
@@ -80,14 +82,68 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
                     } catch (e: NumberFormatException) {
                         //数字じゃない→そのまま
                     }
-                    mDl = Downloader()
-                    mDl!!.execute(url)
-                    mWarnAdapter.clear()
-                    mWarnAdapter.add(getString(R.string.downloading, url))
-                    mMmlField.isEnabled = false
+
+                    download(url)
                 }.create()
         }
         throw IllegalArgumentException("unexpected id: $id")
+    }
+
+    private fun download(url: String) {
+        check(downloadJob == null)
+
+        downloadJob = lifecycleScope.launch {
+            onDownloadStart(url)
+
+            val result = withContext(Dispatchers.IO) {
+                val getter = HttpGetString()
+                try {
+                    Result.success(getter.get(url))
+                } catch (e: IOException) {
+                    Result.failure(e)
+                }
+            }
+
+            onDownloadEndOrCancaled() // こちらが先
+            onDownloadEnd(result)
+            downloadJob = null
+        }
+    }
+
+    private fun cancelDownload() {
+        val job = downloadJob
+        check(job != null)
+
+        job.cancel()
+        downloadJob = null
+
+        onDownloadEndOrCancaled()
+    }
+
+    private fun onDownloadStart(url: String) {
+        mWarnAdapter.clear()
+        mWarnAdapter.add(getString(R.string.downloading, url))
+        mMmlField.isEnabled = false
+    }
+
+    private fun onDownloadEndOrCancaled() {
+        mMmlField.isEnabled = true
+        mWarnAdapter.clear()
+    }
+
+    private fun onDownloadEnd(result: Result<String>) {
+        val id = if (result.isSuccess) R.string.toast_succeed else R.string.toast_failed
+        mToast.setText(id)
+        mToast.show()
+
+        result
+            .onSuccess {
+                mMmlField.setText(it)
+            }.onFailure {
+                mWarnAdapter.add(getString(R.string.failed_to_download))
+                val message = it.message ?: it.javaClass.simpleName
+                mWarnAdapter.add(message)
+            }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
@@ -186,11 +242,6 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
         mmlText = mMmlField.text.toString()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        if (mDl != null) mDl!!.cancel(true)
-    }
-
     fun play() {
         var format = getSharedPreferences("setting", MODE_PRIVATE).getInt(
             "output_format",
@@ -255,42 +306,6 @@ class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
                 mPlayButton.setText(R.string.play)
                 buttonPlay = true
                 stop()
-            }
-        }
-    }
-
-    private fun finishDownload() {
-        mMmlField.isEnabled = true
-        mWarnAdapter.clear()
-        mDl = null
-    }
-
-    private inner class Downloader : AsyncTask<String, Void?, String?>() {
-        @Volatile
-        private var err: IOException? = null
-        private val mGetter = HttpGetString()
-
-        override fun doInBackground(vararg strings: String): String? {
-            var res: String? = null
-            try {
-                res = mGetter[strings[0]]
-            } catch (e: IOException) {
-                err = e
-            }
-            return res
-        }
-
-        override fun onPostExecute(s: String?) {
-            val id = if (err == null) R.string.toast_succeed else R.string.toast_failed
-            mToast.setText(id)
-            mToast.show()
-            finishDownload()
-            if (err == null) {
-                mMmlField.setText(s)
-            } else {
-                mWarnAdapter.add(getString(R.string.failed_to_download))
-                val message = err!!.message
-                if (message != null) mWarnAdapter.add(message) else mWarnAdapter.add(err!!.javaClass.simpleName)
             }
         }
     }
