@@ -1,429 +1,395 @@
-package jp.uguisu.aikotoba.mmlt;
+package jp.uguisu.aikotoba.mmlt
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.content.ComponentName;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.IBinder;
-import android.view.KeyEvent;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.Window;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ListView;
-import android.widget.SeekBar;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.app.Activity
+import android.app.AlertDialog
+import android.app.Dialog
+import android.content.ComponentName
+import android.content.Intent
+import android.content.ServiceConnection
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.os.AsyncTask
+import android.os.Bundle
+import android.os.Handler
+import android.os.IBinder
+import android.view.KeyEvent
+import android.view.View
+import android.view.View.OnLongClickListener
+import android.view.ViewGroup
+import android.view.Window
+import android.widget.*
+import android.widget.SeekBar.OnSeekBarChangeListener
+import com.txt_nifty.sketch.flmml.FlMML
+import com.txt_nifty.sketch.flmml.MSequencer
+import com.txt_nifty.sketch.flmml.rep.Sound
+import jp.uguisu.aikotoba.mmlt.BackgroundService.ServiceBinder
+import java.io.IOException
 
-import com.txt_nifty.sketch.flmml.FlMML;
-import com.txt_nifty.sketch.flmml.MSequencer;
-import com.txt_nifty.sketch.flmml.rep.Sound;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-
-public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeListener, View.OnClickListener, View.OnLongClickListener {
-
-    static String mmlText = null;
-
-    public static final int DIALOG_DOWNLOAD = 1;
-    public static final String PIKOKAKIKO_BASE = "https://dic.nicovideo.jp/mml/";
-    private FlMML mFlmml;
-    private Toast mToast;
-    private Button mPlayButton;
-    private boolean buttonPlay = true;
-    private MmlEventListener mListener;
-    private EditText mMmlField;
-    private Handler mHandler;
-    private Downloader mDl;
-    private HttpGetString mGetter = new HttpGetString();
-    private RunRunnable mRunRunnable = new RunRunnable();
-    private ArrayAdapter<String> mWarnAdapter;
-    private BackgroundService.ServiceBinder binder;
-    ServiceConnection connection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            binder = (BackgroundService.ServiceBinder) service;
+class MainActivity : Activity(), OnSeekBarChangeListener, View.OnClickListener,
+    OnLongClickListener {
+    private var mFlmml: FlMML? = null
+    private var mToast: Toast? = null
+    private var mPlayButton: Button? = null
+    private var buttonPlay = true
+    private var mListener: MmlEventListener? = null
+    private var mMmlField: EditText? = null
+    private var mHandler: Handler? = null
+    private var mDl: Downloader? = null
+    private val mGetter = HttpGetString()
+    private val mRunRunnable = RunRunnable()
+    private var mWarnAdapter: ArrayAdapter<String>? = null
+    private var binder: ServiceBinder? = null
+    var connection: ServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+            binder = service as ServiceBinder
         }
 
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
+        override fun onServiceDisconnected(name: ComponentName) {}
+    }
 
-        }
-    };
-
-    @Override
-    public boolean onLongClick(View view) {
-        switch (view.getId()) {
-            case R.id.ppbutton:
+    override fun onLongClick(view: View): Boolean {
+        when (view.id) {
+            R.id.ppbutton -> {
                 if (mDl != null) {
-                    mToast.setText(R.string.toast_canceled);
-                    mToast.show();
-                    mDl.cancel(true);
-                    finishDownload();
+                    mToast!!.setText(R.string.toast_canceled)
+                    mToast!!.show()
+                    mDl!!.cancel(true)
+                    finishDownload()
                 }
-                showDialog(DIALOG_DOWNLOAD);
-                return true;
-            case R.id.stopbutton:
-                startActivity(new Intent(this, TraceActivity.class));
-                return true;
+                showDialog(DIALOG_DOWNLOAD)
+                return true
+            }
+            R.id.stopbutton -> {
+                startActivity(Intent(this, TraceActivity::class.java))
+                return true
+            }
         }
-        return false;
+        return false
     }
 
-    @Override
-    protected Dialog onCreateDialog(int id) {
+    override fun onCreateDialog(id: Int): Dialog {
         if (id == DIALOG_DOWNLOAD) {
-            final EditText urlField = (EditText) View.inflate(this, R.layout.dialog_download, null);
-            return new AlertDialog.Builder(this).setTitle(R.string.enter_url).setView(urlField)
-                    .setNegativeButton(R.string.cancel, null)
-                    .setPositiveButton(R.string.download, new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                            String url = urlField.getText().toString();
-                            //数字ならピコカキコをもってくる
-                            try {
-                                int no = Integer.parseInt(url);
-                                url = PIKOKAKIKO_BASE + no;
-                            } catch (NumberFormatException e) {
-                                //数字じゃない→そのまま
-                            }
-                            mDl = new Downloader();
-                            mDl.execute(url);
-                            mWarnAdapter.clear();
-                            mWarnAdapter.add(getString(R.string.downloading, url));
-                            mMmlField.setEnabled(false);
-                        }
-                    }).create();
+            val urlField = View.inflate(this, R.layout.dialog_download, null) as EditText
+            return AlertDialog.Builder(this).setTitle(R.string.enter_url).setView(urlField)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.download) { dialog, whichButton ->
+                    var url = urlField.text.toString()
+                    //数字ならピコカキコをもってくる
+                    try {
+                        val no = url.toInt()
+                        url = PIKOKAKIKO_BASE + no
+                    } catch (e: NumberFormatException) {
+                        //数字じゃない→そのまま
+                    }
+                    mDl = Downloader()
+                    mDl!!.execute(url)
+                    mWarnAdapter!!.clear()
+                    mWarnAdapter!!.add(getString(R.string.downloading, url))
+                    mMmlField!!.isEnabled = false
+                }.create()
         }
-        return null;
+        throw IllegalArgumentException("unexpected id: $id")
     }
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             //ホームへ戻る(finishしない)
-            Intent intent = new Intent(Intent.ACTION_MAIN);
-            intent.addCategory(Intent.CATEGORY_HOME);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-            startActivity(intent);
-            return true;
+            val intent = Intent(Intent.ACTION_MAIN)
+            intent.addCategory(Intent.CATEGORY_HOME)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+            startActivity(intent)
+            return true
         }
-        return false;
+        return false
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        requestWindowFeature(Window.FEATURE_NO_TITLE);
-        setContentView(R.layout.activity_main);
-        setVolumeControlStream(AudioManager.STREAM_MUSIC);
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
+        setContentView(R.layout.activity_main)
+        volumeControlStream = AudioManager.STREAM_MUSIC
 
-        mHandler = new Handler();
-        mListener = new MmlEventListener();
-        mToast = Toast.makeText(getApplicationContext(), null, Toast.LENGTH_SHORT);
-        mWarnAdapter = new ArrayAdapter<String>(this, R.layout.simple_textview, new ArrayList<>(Collections.singletonList(getString(R.string.how_to_download)))) {
-            @Override
-            public boolean isEnabled(int position) {
-                return false;
+        mHandler = Handler()
+        mListener = MmlEventListener()
+        mToast = Toast.makeText(applicationContext, null, Toast.LENGTH_SHORT)
+        mWarnAdapter = object : ArrayAdapter<String>(
+            this,
+            R.layout.simple_textview,
+            ArrayList(listOf(getString(R.string.how_to_download)))
+        ) {
+            override fun isEnabled(position: Int): Boolean {
+                return false
             }
-        };
+        }
         try {
-            mFlmml = FlMML.getStaticInstance();
-        } catch (OutOfMemoryError e) {
-            mToast.setText(R.string.out_of_memory_initialization);
-            mToast.show();
+            mFlmml = FlMML.getStaticInstance()
+        } catch (e: OutOfMemoryError) {
+            mToast!!.setText(R.string.out_of_memory_initialization)
+            mToast!!.show()
         }
 
+        (findViewById<View>(R.id.warnings) as ListView).adapter = mWarnAdapter
+        (findViewById<View>(R.id.volumebar) as SeekBar).setOnSeekBarChangeListener(this)
+        mPlayButton = findViewById<View>(R.id.ppbutton) as Button
+        mMmlField = findViewById<View>(R.id.input) as EditText
+        val stopbutton = findViewById<View>(R.id.stopbutton)
+        mPlayButton!!.setOnClickListener(this)
+        mPlayButton!!.setOnLongClickListener(this)
+        stopbutton.setOnClickListener(this)
+        stopbutton.setOnLongClickListener(this)
+        findViewById<View>(R.id.setting).setOnClickListener(this)
 
-        ((ListView) findViewById(R.id.warnings)).setAdapter(mWarnAdapter);
-        ((SeekBar) findViewById(R.id.volumebar)).setOnSeekBarChangeListener(this);
-        mPlayButton = (Button) findViewById(R.id.ppbutton);
-        mMmlField = (EditText) findViewById(R.id.input);
-        View stopbutton = findViewById(R.id.stopbutton);
-        mPlayButton.setOnClickListener(this);
-        mPlayButton.setOnLongClickListener(this);
-        stopbutton.setOnClickListener(this);
-        stopbutton.setOnLongClickListener(this);
-        findViewById(R.id.setting).setOnClickListener(this);
-
-        if (mmlText != null)
-            mMmlField.setText(mmlText);
+        if (mmlText != null) {
+            mMmlField!!.setText(mmlText)
+        }
     }
 
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
+    override fun onSaveInstanceState(outState: Bundle) {
         //EditTextのonSaveInstanceStateを呼ばれないよう一時削除
-        ViewGroup parent = (ViewGroup) mMmlField.getParent();
-        parent.removeView(mMmlField);
+        val parent = mMmlField!!.parent as ViewGroup
+        parent.removeView(mMmlField)
 
-        super.onSaveInstanceState(outState);
+        super.onSaveInstanceState(outState)
 
-        parent.addView(mMmlField);
+        parent.addView(mMmlField)
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        bindService(new Intent(getApplicationContext(), BackgroundService.class), connection, BIND_AUTO_CREATE);
+    override fun onStart() {
+        super.onStart()
+        bindService(
+            Intent(applicationContext, BackgroundService::class.java),
+            connection,
+            BIND_AUTO_CREATE
+        )
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (mFlmml == null) return;
-        if (mFlmml.isPlaying()) {
-            buttonPlay = false;
-            mListener.ispause = true;
+    override fun onResume() {
+        super.onResume()
+        if (mFlmml == null) return
+        if (mFlmml!!.isPlaying) {
+            buttonPlay = false
+            mListener!!.ispause = true
         } else {
-            buttonPlay = true;
+            buttonPlay = true
         }
-        mListener.togglePlaying();
-        mFlmml.setListener(mListener);
+        mListener!!.togglePlaying()
+        mFlmml!!.setListener(mListener)
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (mFlmml != null)
-            mFlmml.setListener(null);
+    override fun onPause() {
+        super.onPause()
+        if (mFlmml != null) mFlmml!!.setListener(null)
     }
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (binder != null)
-            binder.activityClosed();
-        unbindService(connection);
-        mmlText = mMmlField.getText().toString();
+    override fun onStop() {
+        super.onStop()
+        if (binder != null) binder!!.activityClosed()
+        unbindService(connection)
+        mmlText = mMmlField!!.text.toString()
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (mDl != null)
-            mDl.cancel(true);
+    override fun onDestroy() {
+        super.onDestroy()
+        if (mDl != null) mDl!!.cancel(true)
     }
 
-    public void play() {
-        int format = getSharedPreferences("setting", MODE_PRIVATE).getInt("output_format", Sound.RECOMMENDED_ENCODING);
-        switch (format) {
-            case AudioFormat.ENCODING_PCM_8BIT:
-            case AudioFormat.ENCODING_PCM_16BIT:
-            case AudioFormat.ENCODING_PCM_FLOAT:
-                break;
-            default:
-                format = Sound.RECOMMENDED_ENCODING;
+    fun play() {
+        var format = getSharedPreferences("setting", MODE_PRIVATE).getInt(
+            "output_format",
+            Sound.RECOMMENDED_ENCODING
+        )
+        when (format) {
+            AudioFormat.ENCODING_PCM_8BIT, AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_FLOAT -> {}
+            else -> format = Sound.RECOMMENDED_ENCODING
         }
-        MSequencer.setOutput(format);
+        MSequencer.setOutput(format)
 
-        String str = ((TextView) findViewById(R.id.input)).getText().toString();
-        if (!mFlmml.isPaused()) {
-            mListener.mTextRunnable.set(getString(R.string.compiling)).run();
-            mHandler.post(mRunRunnable.set(str));
+        val str = (findViewById<View>(R.id.input) as TextView).text.toString()
+        if (!mFlmml!!.isPaused) {
+            mListener!!.mTextRunnable.set(getString(R.string.compiling)).run()
+            mHandler!!.post(mRunRunnable.set(str))
         } else {
-            mFlmml.play(str);
-            if (binder != null)
-                binder.startPlaying();
+            mFlmml!!.play(str)
+            if (binder != null) binder!!.startPlaying()
         }
     }
 
-    public void pause() {
-        mFlmml.pause();
-        if (binder != null)
-            binder.stopPlaying();
+    fun pause() {
+        mFlmml!!.pause()
+        if (binder != null) binder!!.stopPlaying()
     }
 
-    public void stop() {
-        mFlmml.stop();
-        if (binder != null)
-            binder.stopPlaying();
+    fun stop() {
+        mFlmml!!.stop()
+        if (binder != null) binder!!.stopPlaying()
     }
 
-    @Override
-    public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-        mToast.setText(Integer.toString(i));
-        mToast.show();
-        mFlmml.setMasterVolume(i);
+    override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
+        mToast!!.setText(Integer.toString(i))
+        mToast!!.show()
+        mFlmml!!.setMasterVolume(i)
     }
 
-    @Override
-    public void onStartTrackingTouch(SeekBar seekBar) {
+    override fun onStartTrackingTouch(seekBar: SeekBar) {}
+
+    override fun onStopTrackingTouch(seekBar: SeekBar) {
+        val i = seekBar.progress
+        mToast!!.setText(Integer.toString(i))
+        mToast!!.show()
+        mFlmml!!.setMasterVolume(i)
     }
 
-    @Override
-    public void onStopTrackingTouch(SeekBar seekBar) {
-        int i = seekBar.getProgress();
-        mToast.setText(Integer.toString(i));
-        mToast.show();
-        mFlmml.setMasterVolume(i);
-    }
-
-    @Override
-    public void onClick(View view) {
-        Button b = (Button) view;
-        switch (view.getId()) {
-            case R.id.ppbutton:
+    override fun onClick(view: View) {
+        val b = view as Button
+        when (view.getId()) {
+            R.id.ppbutton -> {
                 if (buttonPlay) {
-                    b.setText(R.string.pause);
-                    play();
+                    b.setText(R.string.pause)
+                    play()
                 } else {
-                    b.setText(R.string.play);
-                    pause();
+                    b.setText(R.string.play)
+                    pause()
                 }
-                buttonPlay = !buttonPlay;
-                break;
-            case R.id.setting:
-                startActivity(new Intent(getApplicationContext(), SettingActivity.class));
-                break;
-            default:
-                mPlayButton.setText(R.string.play);
-                buttonPlay = true;
-                stop();
-        }
-    }
-
-    private void finishDownload() {
-        mMmlField.setEnabled(true);
-        mWarnAdapter.clear();
-        mDl = null;
-    }
-
-    private class Downloader extends AsyncTask<String, Void, String> {
-
-        private volatile IOException err;
-
-        @Override
-        protected String doInBackground(String... strings) {
-            String res = null;
-            try {
-                res = mGetter.get(strings[0]);
-            } catch (IOException e) {
-                err = e;
+                buttonPlay = !buttonPlay
             }
-            return res;
+            R.id.setting -> startActivity(Intent(applicationContext, SettingActivity::class.java))
+            else -> {
+                mPlayButton!!.setText(R.string.play)
+                buttonPlay = true
+                stop()
+            }
+        }
+    }
+
+    private fun finishDownload() {
+        mMmlField!!.isEnabled = true
+        mWarnAdapter!!.clear()
+        mDl = null
+    }
+
+    private inner class Downloader : AsyncTask<String, Void?, String?>() {
+        @Volatile
+        private var err: IOException? = null
+
+        protected override fun doInBackground(vararg strings: String): String? {
+            var res: String? = null
+            try {
+                res = mGetter[strings[0]]
+            } catch (e: IOException) {
+                err = e
+            }
+            return res
         }
 
-        @Override
-        protected void onPostExecute(String s) {
-            int id = err == null ? R.string.toast_succeed : R.string.toast_failed;
-            mToast.setText(id);
-            mToast.show();
-            finishDownload();
+        override fun onPostExecute(s: String?) {
+            val id = if (err == null) R.string.toast_succeed else R.string.toast_failed
+            mToast!!.setText(id)
+            mToast!!.show()
+            finishDownload()
             if (err == null) {
-                mMmlField.setText(s);
+                mMmlField!!.setText(s)
             } else {
-                mWarnAdapter.add(getString(R.string.failed_to_download));
-                String message = err.getMessage();
-                if (message != null)
-                    mWarnAdapter.add(message);
-                else
-                    mWarnAdapter.add(err.getClass().getSimpleName());
+                mWarnAdapter!!.add(getString(R.string.failed_to_download))
+                val message = err!!.message
+                if (message != null) mWarnAdapter!!.add(message) else mWarnAdapter!!.add(err!!.javaClass.simpleName)
             }
         }
     }
 
-    private class MmlEventListener extends FlMML.Listener {
-        final Runnable1 mTextRunnable = new Runnable1();
-        boolean ispause;
-        private TextView v = ((Button) findViewById(R.id.ppbutton));
+    private inner class MmlEventListener : FlMML.Listener() {
+        val mTextRunnable = Runnable1()
+        var ispause = false
+        private val v: TextView = findViewById<View>(R.id.ppbutton) as Button
 
-        public void onTextChanged(final String text) {
-            mHandler.post(mTextRunnable.set(text));
+        override fun onTextChanged(text: String) {
+            mHandler!!.post(mTextRunnable.set(text))
         }
 
-        public void onCompileCompleted(final String warnings) {
-            mWarnAdapter.clear();
-            if (!warnings.equals("")) {
-                String[] s = warnings.split("\n");
-                for (int i = 0, len = s.length; i < len; i++)
-                    mWarnAdapter.add(s[i]);
+        override fun onCompileCompleted(warnings: String) {
+            mWarnAdapter!!.clear()
+            if (warnings != "") {
+                val s = warnings.split("\n".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                var i = 0
+                val len = s.size
+                while (i < len) {
+                    mWarnAdapter!!.add(s[i])
+                    i++
+                }
             } else {
-                String title = mFlmml.getMetaTitle();
-                String artist = mFlmml.getMetaArtist();
-                String comment = mFlmml.getMetaComment();
-                String coding = mFlmml.getMetaCoding();
-                if (!title.equals("")) {
-                    mWarnAdapter.add("-Title-\n" + title);
+                val title = mFlmml!!.metaTitle
+                val artist = mFlmml!!.metaArtist
+                val comment = mFlmml!!.metaComment
+                val coding = mFlmml!!.metaCoding
+                if (title != "") {
+                    mWarnAdapter!!.add("-Title-\n$title")
                 }
-                if (!artist.equals("")) {
-                    mWarnAdapter.add("-Artist-\n" + artist);
+                if (artist != "") {
+                    mWarnAdapter!!.add("-Artist-\n$artist")
                 }
-                if (!comment.equals("")) {
-                    mWarnAdapter.add("-Comment-\n" + comment);
+                if (comment != "") {
+                    mWarnAdapter!!.add("-Comment-\n$comment")
                 }
-                if (!coding.equals("")) {
-                    mWarnAdapter.add("-Coding-\n" + coding);
+                if (coding != "") {
+                    mWarnAdapter!!.add("-Coding-\n$coding")
                 }
             }
         }
 
-        public void onComplete() {
-            if (binder != null)
-                binder.stopPlaying();
-            togglePlaying();
+        override fun onComplete() {
+            if (binder != null) binder!!.stopPlaying()
+            togglePlaying()
         }
 
-        public void togglePlaying() {
-            buttonPlay = !ispause;
-            v.setText(ispause ? R.string.pause : R.string.play);
-            ispause = false;
+        fun togglePlaying() {
+            buttonPlay = !ispause
+            v.setText(if (ispause) R.string.pause else R.string.play)
+            ispause = false
         }
 
-        class Runnable1 implements Runnable {
-            private volatile String text;
-            private TextView v = ((TextView) findViewById(R.id.state));
+        internal inner class Runnable1 : Runnable {
+            @Volatile
+            private var text: String? = null
+            private val v = findViewById<View>(R.id.state) as TextView
 
-            public Runnable1 set(String s) {
-                text = s;
-                return this;
+            fun set(s: String?): Runnable1 {
+                text = s
+                return this
             }
 
-            @Override
-            public void run() {
-                v.setText(text);
+            override fun run() {
+                v.text = text
             }
         }
-
     }
 
-    private class RunRunnable implements Runnable {
+    private inner class RunRunnable : Runnable {
+        var s: String? = null
 
-        String s;
-
-        public Runnable set(String s) {
-            this.s = s;
-            return this;
+        fun set(s: String?): Runnable {
+            this.s = s
+            return this
         }
 
-        @Override
-        public void run() {
+        override fun run() {
             try {
-                mFlmml.play(s);
-                mListener.mTextRunnable.set("").run();
-                if (binder != null)
-                    binder.startPlaying();
-            } catch (OutOfMemoryError e) {
+                mFlmml!!.play(s)
+                mListener!!.mTextRunnable.set("").run()
+                if (binder != null) binder!!.startPlaying()
+            } catch (e: OutOfMemoryError) {
                 //メモリ解放
-                if (binder != null)
-                    binder.stopPlaying();
-                mFlmml.play("");
-                mFlmml.stop();
-
-                mPlayButton.setText(R.string.play);
-                buttonPlay = true;
-                mListener.mTextRunnable.set(getString(R.string.out_of_memory_compile)).run();
+                if (binder != null) binder!!.stopPlaying()
+                mFlmml!!.play("")
+                mFlmml!!.stop()
+                mPlayButton!!.setText(R.string.play)
+                buttonPlay = true
+                mListener!!.mTextRunnable.set(getString(R.string.out_of_memory_compile)).run()
             }
         }
+    }
+
+    companion object {
+        var mmlText: String? = null
+        const val DIALOG_DOWNLOAD = 1
+        const val PIKOKAKIKO_BASE = "https://dic.nicovideo.jp/mml/"
     }
 }
