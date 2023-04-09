@@ -12,6 +12,7 @@ import static android.media.AudioFormat.ENCODING_PCM_FLOAT;
 
 public class Sound {
 
+    public static final int[] SUPPORTED_ENCODINGS;
     public static final int RECOMMENDED_ENCODING;
     private static final int CHANNEL_STEREO;
 
@@ -20,10 +21,15 @@ public class Sound {
             CHANNEL_STEREO = AudioFormat.CHANNEL_OUT_STEREO;
         else
             CHANNEL_STEREO = AudioFormat.CHANNEL_CONFIGURATION_STEREO;
-        if (Build.VERSION.SDK_INT >= 21)
-            RECOMMENDED_ENCODING = AudioFormat.ENCODING_PCM_FLOAT;
-        else
-            RECOMMENDED_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
+
+        // 最後が RECOMMENDED_ENCODING となる
+        SUPPORTED_ENCODINGS = Build.VERSION.SDK_INT >= 21 ? new int[]{
+            ENCODING_PCM_8BIT, ENCODING_PCM_16BIT, ENCODING_PCM_FLOAT
+        } : new int[]{
+            ENCODING_PCM_8BIT, ENCODING_PCM_16BIT
+        };
+
+        RECOMMENDED_ENCODING = SUPPORTED_ENCODINGS[SUPPORTED_ENCODINGS.length - 1];
     }
 
     private final WriteRunnable mWriteRunnable;

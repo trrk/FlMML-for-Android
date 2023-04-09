@@ -11,7 +11,7 @@ import android.widget.RadioGroup
 import com.txt_nifty.sketch.flmml.rep.Sound
 
 class SettingActivity : Activity(), RadioGroup.OnCheckedChangeListener {
-    lateinit var mPreferences: SharedPreferences
+    private lateinit var mPreferences: SharedPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,23 +19,25 @@ class SettingActivity : Activity(), RadioGroup.OnCheckedChangeListener {
         volumeControlStream = AudioManager.STREAM_MUSIC
 
         mPreferences = getSharedPreferences("setting", MODE_PRIVATE)
-        var format = mPreferences.getInt("output_format", Sound.RECOMMENDED_ENCODING)
-        when (format) {
-            AudioFormat.ENCODING_PCM_FLOAT -> if (Build.VERSION.SDK_INT < 21) {
-                format = Sound.RECOMMENDED_ENCODING
-            }
-            AudioFormat.ENCODING_PCM_8BIT, AudioFormat.ENCODING_PCM_16BIT -> {}
-            else -> format = Sound.RECOMMENDED_ENCODING
+
+        val savedFormat = mPreferences.getInt("output_format", Sound.RECOMMENDED_ENCODING)
+        val format = if (Sound.SUPPORTED_ENCODINGS.contains(savedFormat)) {
+            savedFormat
+        } else {
+            Sound.RECOMMENDED_ENCODING
         }
-        var check = 0
-        when (format) {
-            AudioFormat.ENCODING_PCM_8BIT -> check = R.id.type8
-            AudioFormat.ENCODING_PCM_16BIT -> check = R.id.type16
-            AudioFormat.ENCODING_PCM_FLOAT -> check = R.id.type32
+
+        val check = when (format) {
+            AudioFormat.ENCODING_PCM_8BIT -> R.id.type8
+            AudioFormat.ENCODING_PCM_16BIT -> R.id.type16
+            AudioFormat.ENCODING_PCM_FLOAT -> R.id.type32
+            else -> throw RuntimeException("unexpected value: $format")
         }
-        val rg = findViewById<View>(R.id.radios) as RadioGroup
+
+        val rg = findViewById<RadioGroup>(R.id.radios)
         rg.check(check)
         rg.setOnCheckedChangeListener(this)
+
         if (Build.VERSION.SDK_INT < 21) {
             rg.findViewById<View>(R.id.type32).isEnabled = false
         }
