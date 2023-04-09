@@ -39,17 +39,17 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     public static final int DIALOG_DOWNLOAD = 1;
     public static final String PIKOKAKIKO_BASE = "https://dic.nicovideo.jp/mml/";
-    FlMML mFlmml;
-    Toast mToast;
-    Button mPlayButton;
-    boolean buttonPlay = true;
-    MmlEventListener mListener;
-    EditText mMmlField;
-    Handler mHandler;
-    Downloader mDl;
-    HttpGetString mGetter = new HttpGetString();
-    RunRunnable mRunRunnable = new RunRunnable();
-    ArrayAdapter<String> mWarnAdapter;
+    private FlMML mFlmml;
+    private Toast mToast;
+    private Button mPlayButton;
+    private boolean buttonPlay = true;
+    private MmlEventListener mListener;
+    private EditText mMmlField;
+    private Handler mHandler;
+    private Downloader mDl;
+    private HttpGetString mGetter = new HttpGetString();
+    private RunRunnable mRunRunnable = new RunRunnable();
+    private ArrayAdapter<String> mWarnAdapter;
     private BackgroundService.ServiceBinder binder;
     ServiceConnection connection = new ServiceConnection() {
         @Override
