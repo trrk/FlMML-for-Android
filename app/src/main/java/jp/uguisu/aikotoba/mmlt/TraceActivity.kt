@@ -44,7 +44,7 @@ class TraceActivity : Activity() {
                     MotionEvent.ACTION_DOWN -> preY = event.y.toInt()
                     MotionEvent.ACTION_MOVE -> {
                         val y = event.y.toInt()
-                        mRunner!!.scroll(y - preY)
+                        mRunner?.scroll(y - preY)
                         preY = y
                     }
                 }
