@@ -7,7 +7,6 @@ import android.graphics.Paint
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
 import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceHolder
@@ -19,29 +18,29 @@ import com.txt_nifty.sketch.flmml.MStatus
 import com.txt_nifty.sketch.flmml.MTrack
 
 class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
-    var mSurface: SurfaceView? = null
-    var mHolder: SurfaceHolder? = null
-    var mTracks: ArrayList<MTrack>? = null
+    private val mTracks: ArrayList<MTrack>? = FlMML.getStaticInstance().rawMML.rawTracks
     private var mRunner: Runner? = null
     private var preY = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(SurfaceView(this).also { mSurface = it })
+        if (mTracks == null || mTracks.size == 0) {
+            finish()
+        }
+
+        val surfaceView = SurfaceView(this)
+        setContentView(surfaceView)
         volumeControlStream = AudioManager.STREAM_MUSIC
-        mSurface!!.setOnTouchListener(this)
-        mHolder = mSurface!!.holder.also { it.addCallback(this) }
-        mTracks = FlMML.getStaticInstance().rawMML.rawTracks
-        if (mTracks == null || mTracks!!.size == 0) finish()
+        surfaceView.setOnTouchListener(this)
+        surfaceView.holder.addCallback(this)
     }
 
     override fun surfaceCreated(surfaceHolder: SurfaceHolder) {}
 
     override fun surfaceChanged(surfaceHolder: SurfaceHolder, i: Int, i1: Int, i2: Int) {
-        if (mRunner != null) {
-            mRunner!!.finish()
-        }
-        mRunner = Runner(surfaceHolder, mTracks!!, Handler())
+        mRunner?.finish()
+
+        mRunner = Runner(surfaceHolder, mTracks!!)
         Thread(mRunner).start()
     }
 
@@ -61,10 +60,9 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
         return true
     }
 
-    private class Runner internal constructor(
+    private class Runner constructor(
         private val mHolder: SurfaceHolder,
         private val mTracks: ArrayList<MTrack>,
-        private val mHandler: Handler
     ) : Runnable {
         private var mFinish = false
         private val mPointer: IntArray = IntArray(mTracks.size)
@@ -96,7 +94,7 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
 
         override fun run() {
             calcSpt(120.0)
-            val porNowFreqNo = IntArray(mTracks!!.size)
+            val porNowFreqNo = IntArray(mTracks.size)
             var fpsTimeStart = System.currentTimeMillis()
             var fpsFrameCount = 0
             val p = Paint()
@@ -131,13 +129,13 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
                                     calcSpt(e.tempo)
                                     spt = mSpt
                                 }
-                                MStatus.NOTE_ON ->                                     // POLY 範囲内に収まっているかは知らない
-                                    mNumber[i]!!.add(e.noteNo)
-                                MStatus.NOTE_OFF -> mNumber[i]!!.remove(e.noteNo)
+                                MStatus.NOTE_ON -> // POLY 範囲内に収まっているかは知らない
+                                    mNumber[i].add(e.noteNo)
+                                MStatus.NOTE_OFF -> mNumber[i].remove(e.noteNo)
                                 MStatus.NOTE -> {
                                     // []内でスラーしたら知らない
-                                    mNumber[i]!!.clear()
-                                    mNumber[i]!!.add(e.noteNo)
+                                    mNumber[i].clear()
+                                    mNumber[i].add(e.noteNo)
                                 }
                                 MStatus.PORTAMENTO -> {
                                     mPorDepth[i] = e.porDepth
@@ -157,8 +155,7 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
                     break
                 }
 
-                val c: Canvas?
-                c = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val c: Canvas? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     mHolder.lockHardwareCanvas()
                 } else {
                     mHolder.lockCanvas()
@@ -181,14 +178,14 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
                 //octave
                 for (i in mTracks.indices) {
                     val dep = mPorDepth[i]
-                    for (key in mNumber[i]!!) {
+                    for (key in mNumber[i]) {
                         val octave = (if (key < 0) (key + 1) / 12 - 1 else key / 12).toByte()
                         if (octave < mOctave[i]) mOctave[i] = octave
                         if (octave > mOctave[i] + 1) mOctave[i] = (octave - 1).toByte()
                     }
                     if (dep != 0) {
-                        if (mNumber[i]!!.isEmpty()) continue
-                        val starttune = (mNumber[i]!![0] + dep) * 100
+                        if (mNumber[i].isEmpty()) continue
+                        val starttune = (mNumber[i][0] + dep) * 100
                         val milli = (now - mEvtime[i]).toInt()
                         porNowFreqNo[i] = starttune - (dep * 100 * (milli / mPorLen[i])).toInt()
                         val mkey = porNowFreqNo[i] / 100
@@ -208,7 +205,7 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
                 p.textSize = 30f
                 for (i in 1 until size) {
                     sb.append(i).append(' ')
-                    for (key in mNumber[i]!!) {
+                    for (key in mNumber[i]) {
                         val octave = (if (key < 0) (key + 1) / 12 - 1 else key / 12).toByte()
                         val octavepos = octave - mOctave[i]
                         if (octavepos != 0 && octavepos != 1) {
@@ -238,8 +235,8 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
             p.color = Color.RED
             c.save()
             c.translate(0f, 17f)
-            for (i in 1 until mTracks!!.size) {
-                for (mkey in mNumber[i]!!) {
+            for (i in 1 until mTracks.size) {
+                for (mkey in mNumber[i]) {
                     val key = if (mkey % 12 >= 0) mkey % 12 else mkey % 12 + 12
                     val bottom = KEY_IS_WHITE[key]
                     if (bottom) {
@@ -261,8 +258,8 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
             p.color = Color.RED
             c.save()
             c.translate(0f, 17f)
-            for (i in 1 until mTracks!!.size) {
-                for (mkey in mNumber[i]!!) {
+            for (i in 1 until mTracks.size) {
+                for (mkey in mNumber[i]) {
                     val key = if (mkey % 12 >= 0) mkey % 12 else mkey % 12 + 12
                     val bottom = KEY_IS_WHITE[key]
                     if (!bottom) {
@@ -285,7 +282,7 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
             p.textSize = 8f
             c.save()
             c.translate(3f, 17f)
-            for (i in 1 until mTracks!!.size) {
+            for (i in 1 until mTracks.size) {
                 val octave = mOctave[i].toInt()
                 c.drawText(octave.toString() + "", 2.7f, 28f, p)
                 c.drawText((octave + 1).toString() + "", 72.7f, 28f, p)
@@ -298,7 +295,7 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
             c.save()
             c.translate(3f, 17f)
             p.color = -0x1000000
-            for (j in 1 until mTracks!!.size) {
+            for (j in 1 until mTracks.size) {
                 run {
                     var i = 0
                     while (i < (14 + 1) * 10) {
@@ -323,14 +320,14 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
             p.color = Color.BLUE
             c.save()
             c.translate(0f, (17 - 36).toFloat())
-            for (i in 1 until mTracks!!.size) {
+            for (i in 1 until mTracks.size) {
                 c.translate(0f, 36f)
                 val dep = mPorDepth[i]
-                if (dep == 0 || mNumber[i]!!.isEmpty()) continue
+                if (dep == 0 || mNumber[i].isEmpty()) continue
                 var start_center: Int
                 var now_pos: Float
                 run {
-                    val mkey = mNumber[i]!![0] + dep
+                    val mkey = mNumber[i][0] + dep
                     val octave = (if (mkey < 0) (mkey + 1) / 12 - 1 else mkey / 12).toByte()
                     val octavepos = octave - mOctave[i]
                     val key = if (mkey % 12 >= 0) mkey % 12 else mkey % 12 + 12
@@ -361,7 +358,7 @@ class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
             c.save()
             c.translate(3f, 17f)
             p.color = -0x1
-            for (j in 1 until mTracks!!.size) {
+            for (j in 1 until mTracks.size) {
                 c.drawRect(0f, 0f, 140f, 30f, p)
                 c.translate(0f, 36f)
             }
