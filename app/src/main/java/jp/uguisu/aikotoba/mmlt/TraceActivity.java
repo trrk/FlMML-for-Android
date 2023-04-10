@@ -48,14 +48,14 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
     @Override
     public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int i1, int i2) {
         if (mRunner != null)
-            mRunner.finish();
+            mRunner.finish(true);
         mRunner = new Runner(surfaceHolder, mTracks, new Handler());
         new Thread(mRunner).start();
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
-        mRunner.finish();
+        mRunner.finish(false);
     }
 
     @Override
@@ -77,6 +77,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
         private final SurfaceHolder mHolder;
         private final Handler mHandler;
         private boolean mFinish;
+        private boolean unlockNeeded = true;
         private ArrayList<MTrack> mTracks;
         private int[] mPointer;
         private ArrayList<Integer>[] mNumber;
@@ -116,9 +117,14 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             mPorLen = new double[mTracks.size()];
         }
 
-        private void finish() {
+        private void finish(boolean unlockNeeded) {
             synchronized (this) {
+                if (!this.unlockNeeded) {
+                    throw new IllegalStateException("unexpected state");
+                }
+
                 mFinish = true;
+                this.unlockNeeded = unlockNeeded;
             }
         }
 
@@ -136,7 +142,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             int fpsFrameCount = 0;
             Paint p = new Paint();
             StringBuilder sb = new StringBuilder();
-            while (!mFinish) {
+            loop: while (!mFinish) {
                 int size = mTracks.size();
                 long now = FlMML.getStaticInstance().getNowMSec();
                 {
@@ -182,9 +188,8 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                                     mPorLen[i] = e.getPorLen() * spt;
                                     break;
                                 case MStatus.EOT:
-                                    finish();
-                                    Log.v("TraceThread", "finish()");
-                                    break;
+                                    Log.v("TraceThread", "EOT");
+                                    break loop;
                             }
                             mPointer[i]++;
                         } else
@@ -269,7 +274,8 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 // また、間で surfaceDestroyed が呼ばれていないのに unlockCanvasAndPost を呼ばないでいると、
                 // ANR となることがあった (環境によるかもしれない)
                 synchronized (this) {
-                    if (mFinish) {
+                    if (!unlockNeeded) {
+                        Log.v("TT", "LOCK");
                         break;
                     }
                     mHolder.unlockCanvasAndPost(c);
