@@ -55,14 +55,14 @@ class TraceActivity : Activity() {
             override fun surfaceCreated(surfaceHolder: SurfaceHolder) {}
 
             override fun surfaceChanged(surfaceHolder: SurfaceHolder, i: Int, i1: Int, i2: Int) {
-                mRunner?.finish()
+                mRunner?.finish(true)
 
                 mRunner = Runner(surfaceHolder, tracks)
                 Thread(mRunner).start()
             }
 
             override fun surfaceDestroyed(surfaceHolder: SurfaceHolder) {
-                mRunner!!.finish()
+                mRunner!!.finish(false)
             }
         }
 
@@ -75,6 +75,8 @@ class TraceActivity : Activity() {
         private val mTracks: ArrayList<MTrack>,
     ) : Runnable {
         private var mFinish = false
+        private var unlockNeeded = true
+
         private val mPointer: IntArray = IntArray(mTracks.size)
         private val mNumber: Array<ArrayList<Int>> = Array(mTracks.size) { ArrayList() }
         private val mEvtime: DoubleArray = DoubleArray(mTracks.size)
@@ -93,8 +95,13 @@ class TraceActivity : Activity() {
             if (scroll > 0) scroll = 0
         }
 
-        fun finish() {
-            synchronized(this) { mFinish = true }
+        fun finish(unlockNeeded: Boolean) {
+            synchronized(this) {
+                check(this.unlockNeeded)
+
+                mFinish = true
+                this.unlockNeeded = unlockNeeded
+            }
         }
 
         private fun calcSpt(bpm: Double) {
@@ -109,7 +116,7 @@ class TraceActivity : Activity() {
             var fpsFrameCount = 0
             val p = Paint()
             val sb = StringBuilder()
-            while (!mFinish) {
+            loop@ while (!mFinish) {
                 val size = mTracks.size
                 val now = FlMML.getStaticInstance().nowMSec
                 run {
@@ -152,8 +159,8 @@ class TraceActivity : Activity() {
                                     mPorLen[i] = e.porLen * spt
                                 }
                                 MStatus.EOT -> {
-                                    finish()
-                                    Log.v("TraceThread", "finish()")
+                                    Log.v("TraceThread", "EOT")
+                                    break@loop
                                 }
                             }
                             mPointer[i]++
@@ -234,7 +241,7 @@ class TraceActivity : Activity() {
                 // また、間で surfaceDestroyed が呼ばれていないのに unlockCanvasAndPost を呼ばないでいると、
                 // ANR となることがあった (環境によるかもしれない)
                 synchronized(this) {
-                    if (!mFinish) {
+                    if (unlockNeeded) {
                         mHolder.unlockCanvasAndPost(c)
                     }
                 }
