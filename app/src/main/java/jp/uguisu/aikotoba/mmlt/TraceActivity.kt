@@ -1,266 +1,224 @@
-package jp.uguisu.aikotoba.mmlt;
+package jp.uguisu.aikotoba.mmlt
 
-import android.app.Activity;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.media.AudioManager;
-import android.os.Bundle;
-import android.os.Handler;
-import android.util.Log;
-import android.view.MotionEvent;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
-import android.view.View;
+import android.app.Activity
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.media.AudioManager
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.util.Log
+import android.view.MotionEvent
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.view.View
+import android.view.View.OnTouchListener
+import com.txt_nifty.sketch.flmml.FlMML
+import com.txt_nifty.sketch.flmml.MStatus
+import com.txt_nifty.sketch.flmml.MTrack
 
-import com.txt_nifty.sketch.flmml.FlMML;
-import com.txt_nifty.sketch.flmml.MEvent;
-import com.txt_nifty.sketch.flmml.MStatus;
-import com.txt_nifty.sketch.flmml.MTrack;
+class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
+    var mSurface: SurfaceView? = null
+    var mHolder: SurfaceHolder? = null
+    var mTracks: ArrayList<MTrack>? = null
+    private var mRunner: Runner? = null
+    private var preY = 0
 
-import java.util.ArrayList;
-
-public class TraceActivity extends Activity implements SurfaceHolder.Callback, View.OnTouchListener {
-
-    SurfaceView mSurface;
-    SurfaceHolder mHolder;
-    ArrayList<MTrack> mTracks;
-    private Runner mRunner;
-    private int preY;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(mSurface = new SurfaceView(this));
-        setVolumeControlStream(AudioManager.STREAM_MUSIC);
-        mSurface.setOnTouchListener(this);
-        mHolder = mSurface.getHolder();
-        mHolder.addCallback(this);
-        mTracks = FlMML.getStaticInstance().getRawMML().getRawTracks();
-        if (mTracks == null || mTracks.size() == 0) finish();
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(SurfaceView(this).also { mSurface = it })
+        volumeControlStream = AudioManager.STREAM_MUSIC
+        mSurface!!.setOnTouchListener(this)
+        mHolder = mSurface!!.holder.also { it.addCallback(this) }
+        mTracks = FlMML.getStaticInstance().rawMML.rawTracks
+        if (mTracks == null || mTracks!!.size == 0) finish()
     }
 
-    @Override
-    public void surfaceCreated(SurfaceHolder surfaceHolder) {
+    override fun surfaceCreated(surfaceHolder: SurfaceHolder) {}
 
-    }
-
-    @Override
-    public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int i1, int i2) {
-        if (mRunner != null)
-            mRunner.finish();
-        mRunner = new Runner(surfaceHolder, mTracks, new Handler());
-        new Thread(mRunner).start();
-    }
-
-    @Override
-    public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
-        mRunner.finish();
-    }
-
-    @Override
-    public boolean onTouch(View v, MotionEvent event) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                preY = (int) event.getY();
-                break;
-            case MotionEvent.ACTION_MOVE:
-                int y = (int) event.getY();
-                mRunner.scroll(y - preY);
-                preY = y;
+    override fun surfaceChanged(surfaceHolder: SurfaceHolder, i: Int, i1: Int, i2: Int) {
+        if (mRunner != null) {
+            mRunner!!.finish()
         }
-        return true;
+        mRunner = Runner(surfaceHolder, mTracks!!, Handler())
+        Thread(mRunner).start()
     }
 
-    private static class Runner implements Runnable {
-        private static final String[] table = {"c", "c+", "d", "d+", "e", "f", "f+", "g", "g+", "a", "a+", "b"};
-        private final SurfaceHolder mHolder;
-        private final Handler mHandler;
-        private boolean mFinish;
-        private ArrayList<MTrack> mTracks;
-        private int[] mPointer;
-        private ArrayList<Integer>[] mNumber;
-        private double[] mEvtime;
-        private double[] mPorLen;
-        private int[] mPorDepth;
-        private double mSpt;
-        private byte[] mOctave;
-        private double mFps;
+    override fun surfaceDestroyed(surfaceHolder: SurfaceHolder) {
+        mRunner!!.finish()
+    }
 
-        private volatile int scroll;
-
-        private static final int FPS_REFRESH_TIME = 3000;
-
-        Runner(SurfaceHolder sv, ArrayList<MTrack> tracks, Handler handler) {
-            mHolder = sv;
-            mTracks = tracks;
-            mHandler = handler;
+    override fun onTouch(v: View, event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> preY = event.y.toInt()
+            MotionEvent.ACTION_MOVE -> {
+                val y = event.y.toInt()
+                mRunner!!.scroll(y - preY)
+                preY = y
+            }
         }
+        return true
+    }
 
-        private void scroll(int dy) {
-            scroll += dy;
+    private class Runner internal constructor(
+        private val mHolder: SurfaceHolder,
+        private val mTracks: ArrayList<MTrack>,
+        private val mHandler: Handler
+    ) : Runnable {
+        private var mFinish = false
+        private val mPointer: IntArray = IntArray(mTracks.size)
+        private val mNumber: Array<ArrayList<Int>> = Array(mTracks.size) { ArrayList() }
+        private val mEvtime: DoubleArray = DoubleArray(mTracks.size)
+        private val mPorLen: DoubleArray = DoubleArray(mTracks.size)
+        private val mPorDepth: IntArray = IntArray(mTracks.size)
+        private var mSpt = 0.0
+        private val mOctave: ByteArray = ByteArray(mTracks.size)
+        private var mFps = 0.0
+
+        @Volatile
+        private var scroll = 0
+
+        fun scroll(dy: Int) {
+            scroll += dy
             // 一瞬はみでる可能性もある
-            if (scroll > 0) scroll = 0;
+            if (scroll > 0) scroll = 0
         }
 
-        private void init() {
-            class IntegerArrayList extends ArrayList<Integer> {
-            }
-            mNumber = new IntegerArrayList[mTracks.size()];
-            for (int i = 0; i < mNumber.length; i++)
-                mNumber[i] = new IntegerArrayList();
-            mPointer = new int[mTracks.size()];
-            mOctave = new byte[mTracks.size()];
-            mEvtime = new double[mTracks.size()];
-            mPorDepth = new int[mTracks.size()];
-            mPorLen = new double[mTracks.size()];
+        fun finish() {
+            synchronized(this) { mFinish = true }
         }
 
-        private void finish() {
-            synchronized (this) {
-                mFinish = true;
-            }
+        private fun calcSpt(bpm: Double) {
+            val tps = bpm * 96.0 / 60.0
+            mSpt = 44100.0 / tps * 1000 / 44100
         }
 
-        private void calcSpt(double bpm) {
-            double tps = bpm * 96.0 / 60.0;
-            mSpt = 44100.0 / tps * 1000 / 44100;
-        }
-
-        @Override
-        public void run() {
-            init();
-            calcSpt(120);
-            int[] porNowFreqNo = new int[mTracks.size()];
-            long fpsTimeStart = System.currentTimeMillis();
-            int fpsFrameCount = 0;
-            Paint p = new Paint();
-            StringBuilder sb = new StringBuilder();
+        override fun run() {
+            calcSpt(120.0)
+            val porNowFreqNo = IntArray(mTracks!!.size)
+            var fpsTimeStart = System.currentTimeMillis()
+            var fpsFrameCount = 0
+            val p = Paint()
+            val sb = StringBuilder()
             while (!mFinish) {
-                int size = mTracks.size();
-                long now = FlMML.getStaticInstance().getNowMSec();
-                {
-                    long start = System.currentTimeMillis();
-                    long fpsDiff = start - fpsTimeStart;
+                val size = mTracks.size
+                val now = FlMML.getStaticInstance().nowMSec
+                run {
+                    val start = System.currentTimeMillis()
+                    val fpsDiff = start - fpsTimeStart
                     if (fpsDiff > FPS_REFRESH_TIME) {
-                        mFps = fpsFrameCount * 10000 / fpsDiff / 10d;
-                        fpsTimeStart = start;
-                        fpsFrameCount = 1;
-                    } else
-                        fpsFrameCount++;
+                        mFps = fpsFrameCount * 10000 / fpsDiff / 10.0
+                        fpsTimeStart = start
+                        fpsFrameCount = 1
+                    } else {
+                        fpsFrameCount++
+                    }
                 }
-                double startSpt = mSpt;
-                for (int i = 0; i < size; i++) {
-                    ArrayList<MEvent> events = mTracks.get(i).getRawEvents();
-                    int eLen = events.size();
-                    int mae = mPointer[i];
-                    double spt = startSpt;
+                val startSpt = mSpt
+                for (i in 0 until size) {
+                    val events = mTracks[i].rawEvents
+                    val eLen = events.size
+                    val mae = mPointer[i]
+                    var spt = startSpt
                     while (mPointer[i] < eLen) {
-                        MEvent e = events.get(mPointer[i]);
-                        double milli = e.delta * spt;
+                        val e = events[mPointer[i]]
+                        val milli = e.delta * spt
                         if (milli + mEvtime[i] <= now) {
-                            mEvtime[i] += milli;
-                            switch (e.getStatus()) {
-                                case MStatus.TEMPO:
-                                    calcSpt(e.getTempo());
-                                    spt = mSpt;
-                                    break;
-                                case MStatus.NOTE_ON:
-                                    // POLY 範囲内に収まっているかは知らない
-                                    mNumber[i].add(e.getNoteNo());
-                                    break;
-                                case MStatus.NOTE_OFF:
-                                    mNumber[i].remove((Integer) e.getNoteNo());
-                                    break;
-                                case MStatus.NOTE:
+                            mEvtime[i] += milli
+                            when (e.status) {
+                                MStatus.TEMPO -> {
+                                    calcSpt(e.tempo)
+                                    spt = mSpt
+                                }
+                                MStatus.NOTE_ON ->                                     // POLY 範囲内に収まっているかは知らない
+                                    mNumber[i]!!.add(e.noteNo)
+                                MStatus.NOTE_OFF -> mNumber[i]!!.remove(e.noteNo)
+                                MStatus.NOTE -> {
                                     // []内でスラーしたら知らない
-                                    mNumber[i].clear();
-                                    mNumber[i].add(e.getNoteNo());
-                                    break;
-                                case MStatus.PORTAMENTO:
-                                    mPorDepth[i] = e.getPorDepth();
-                                    mPorLen[i] = e.getPorLen() * spt;
-                                    break;
-                                case MStatus.EOT:
-                                    finish();
-                                    Log.v("TraceThread", "finish()");
-                                    break;
+                                    mNumber[i]!!.clear()
+                                    mNumber[i]!!.add(e.noteNo)
+                                }
+                                MStatus.PORTAMENTO -> {
+                                    mPorDepth[i] = e.porDepth
+                                    mPorLen[i] = e.porLen * spt
+                                }
+                                MStatus.EOT -> {
+                                    finish()
+                                    Log.v("TraceThread", "finish()")
+                                }
                             }
-                            mPointer[i]++;
-                        } else
-                            break;
+                            mPointer[i]++
+                        } else break
                     }
                 }
 
                 if (mFinish) {
-                    break;
+                    break
                 }
 
-                final Canvas c;
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    c = mHolder.lockHardwareCanvas();
+                val c: Canvas?
+                c = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    mHolder.lockHardwareCanvas()
                 } else {
-                    c = mHolder.lockCanvas();
+                    mHolder.lockCanvas()
                 }
                 if (c == null) {
-                    continue;
+                    continue
                 }
-                float scale = (c.getWidth() / 286f);
+                val scale = c.width / 286f
                 // fps
-                p.setColor(0xFFFFFFFF);
-                p.setTextSize(8);
-                c.save();
-                c.scale(scale, scale);
-                c.drawColor(0xFF333333);
-                c.drawText("FPS: " + mFps, 235, 15, p);
-                c.restore();
-                c.translate(0, scroll);
-                c.scale(scale, scale);
+                p.color = -0x1
+                p.textSize = 8f
+                c.save()
+                c.scale(scale, scale)
+                c.drawColor(-0xcccccd)
+                c.drawText("FPS: $mFps", 235f, 15f, p)
+                c.restore()
+                c.translate(0f, scroll.toFloat())
+                c.scale(scale, scale)
 
                 //octave
-                for (int i = 0; i < mTracks.size(); i++) {
-                    int dep = mPorDepth[i];
-                    for (int key : mNumber[i]) {
-                        byte octave = (byte) (key < 0 ? (key + 1) / 12 - 1 : key / 12);
-                        if (octave < mOctave[i])
-                            mOctave[i] = octave;
-                        if (octave > mOctave[i] + 1)
-                            mOctave[i] = (byte) (octave - 1);
+                for (i in mTracks.indices) {
+                    val dep = mPorDepth[i]
+                    for (key in mNumber[i]!!) {
+                        val octave = (if (key < 0) (key + 1) / 12 - 1 else key / 12).toByte()
+                        if (octave < mOctave[i]) mOctave[i] = octave
+                        if (octave > mOctave[i] + 1) mOctave[i] = (octave - 1).toByte()
                     }
                     if (dep != 0) {
-                        if (mNumber[i].isEmpty()) continue;
-                        int starttune = (mNumber[i].get(0) + dep) * 100;
-                        int milli = (int) (now - mEvtime[i]);
-                        porNowFreqNo[i] = starttune - (int) (dep * 100 * (milli / mPorLen[i]));
-                        int mkey = porNowFreqNo[i] / 100;
-                        byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
-                        if (octave < mOctave[i])
-                            mOctave[i] = octave;
-                        if (octave > mOctave[i] + 1)
-                            mOctave[i] = (byte) (octave - 1);
+                        if (mNumber[i]!!.isEmpty()) continue
+                        val starttune = (mNumber[i]!![0] + dep) * 100
+                        val milli = (now - mEvtime[i]).toInt()
+                        porNowFreqNo[i] = starttune - (dep * 100 * (milli / mPorLen[i])).toInt()
+                        val mkey = porNowFreqNo[i] / 100
+                        val octave = (if (mkey < 0) (mkey + 1) / 12 - 1 else mkey / 12).toByte()
+                        if (octave < mOctave[i]) mOctave[i] = octave
+                        if (octave > mOctave[i] + 1) mOctave[i] = (octave - 1).toByte()
                     }
                 }
 
-                drawKeyboards(c, p);
-                drawPlayedWhiteKeys(c, p);
-                drawKeys(c, p);
-                drawPlayedBlackKeys(c, p);
-                drawPortamento(c, p, porNowFreqNo);
-                drawOctaves(c, p);
-                p.setColor(0xFFFFFFFF);
-                p.setTextSize(30);
-                for (int i = 1; i < size; i++) {
-                    sb.append(i).append(' ');
-                    for (int key : mNumber[i]) {
-                        byte octave = (byte) (key < 0 ? (key + 1) / 12 - 1 : key / 12);
-                        int octavepos = octave - mOctave[i];
-                        if (octavepos != 0 && octavepos != 1)
-                            sb.append(table[key % 12 >= 0 ? key % 12 : key % 12 + 12])
-                                    .append(key < 0 ? (key + 1) / 12 - 1 : key / 12)
-                                    .append(' ');
+                drawKeyboards(c, p)
+                drawPlayedWhiteKeys(c, p)
+                drawKeys(c, p)
+                drawPlayedBlackKeys(c, p)
+                drawPortamento(c, p, porNowFreqNo)
+                drawOctaves(c, p)
+                p.color = -0x1
+                p.textSize = 30f
+                for (i in 1 until size) {
+                    sb.append(i).append(' ')
+                    for (key in mNumber[i]!!) {
+                        val octave = (if (key < 0) (key + 1) / 12 - 1 else key / 12).toByte()
+                        val octavepos = octave - mOctave[i]
+                        if (octavepos != 0 && octavepos != 1) {
+                            sb.append(table[if (key % 12 >= 0) key % 12 else key % 12 + 12])
+                                .append(if (key < 0) (key + 1) / 12 - 1 else key / 12)
+                                .append(' ')
+                        }
                     }
-                    c.drawText(sb.toString(), 150, 17 + 36 * (i) - 14, p);
-                    sb.setLength(0);
+                    c.drawText(sb.toString(), 150f, (17 + 36 * i - 14).toFloat(), p)
+                    sb.setLength(0)
                 }
 
                 // lockCanvas / lockHardwareCanvas ~ unlockCanvasAndPost の間に surfaceDestroyed が呼ばれて、
@@ -268,146 +226,167 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 // その対策を講じてある
                 // また、間で surfaceDestroyed が呼ばれていないのに unlockCanvasAndPost を呼ばないでいると、
                 // ANR となることがあった (環境によるかもしれない)
-                synchronized (this) {
-                    if (mFinish) {
-                        break;
+                synchronized(this) {
+                    if (!mFinish) {
+                        mHolder.unlockCanvasAndPost(c)
                     }
-                    mHolder.unlockCanvasAndPost(c);
                 }
             }
         }
 
-        private static final boolean[] KEY_IS_WHITE = new boolean[]{true, false, true, false, true, true, false, true, false, true, false, true};
-        private static final int[] KEY_DRAW_POS = new int[]{0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6};
-
-        private void drawPlayedWhiteKeys(Canvas c, Paint p) {
-            p.setColor(Color.RED);
-            c.save();
-            c.translate(0, 17);
-            for (int i = 1; i < mTracks.size(); i++) {
-                for (int mkey : mNumber[i]) {
-                    int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
-                    boolean bottom = KEY_IS_WHITE[key];
+        private fun drawPlayedWhiteKeys(c: Canvas, p: Paint) {
+            p.color = Color.RED
+            c.save()
+            c.translate(0f, 17f)
+            for (i in 1 until mTracks!!.size) {
+                for (mkey in mNumber[i]!!) {
+                    val key = if (mkey % 12 >= 0) mkey % 12 else mkey % 12 + 12
+                    val bottom = KEY_IS_WHITE[key]
                     if (bottom) {
-                        int pos = KEY_DRAW_POS[key];
-                        int x = 3 + pos * 10;
-                        byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
-                        int octavepos = octave - mOctave[i];
-                        if (octavepos != 0 && octavepos != 1)
-                            continue;
-                        x += octavepos * 70;
-                        c.drawRect(x, 0, x + 10, 30, p);
+                        val pos = KEY_DRAW_POS[key]
+                        var x = 3 + pos * 10
+                        val octave = (if (mkey < 0) (mkey + 1) / 12 - 1 else mkey / 12).toByte()
+                        val octavepos = octave - mOctave[i]
+                        if (octavepos != 0 && octavepos != 1) continue
+                        x += octavepos * 70
+                        c.drawRect(x.toFloat(), 0f, (x + 10).toFloat(), 30f, p)
                     }
                 }
-                c.translate(0, 36);
+                c.translate(0f, 36f)
             }
-            c.restore();
+            c.restore()
         }
 
-        private void drawPlayedBlackKeys(Canvas c, Paint p) {
-            p.setColor(Color.RED);
-            c.save();
-            c.translate(0, 17);
-            for (int i = 1; i < mTracks.size(); i++) {
-                for (int mkey : mNumber[i]) {
-                    int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
-                    boolean bottom = KEY_IS_WHITE[key];
+        private fun drawPlayedBlackKeys(c: Canvas, p: Paint) {
+            p.color = Color.RED
+            c.save()
+            c.translate(0f, 17f)
+            for (i in 1 until mTracks!!.size) {
+                for (mkey in mNumber[i]!!) {
+                    val key = if (mkey % 12 >= 0) mkey % 12 else mkey % 12 + 12
+                    val bottom = KEY_IS_WHITE[key]
                     if (!bottom) {
-                        int pos = KEY_DRAW_POS[key];
-                        int x = 3 + pos * 10;
-                        byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
-                        int octavepos = octave - mOctave[i];
-                        if (octavepos != 0 && octavepos != 1)
-                            continue;
-                        x += octavepos * 70;
-                        c.drawRect(x - 2.5f, 0, x + 2.5f, 18, p);
+                        val pos = KEY_DRAW_POS[key]
+                        var x = 3 + pos * 10
+                        val octave = (if (mkey < 0) (mkey + 1) / 12 - 1 else mkey / 12).toByte()
+                        val octavepos = octave - mOctave[i]
+                        if (octavepos != 0 && octavepos != 1) continue
+                        x += octavepos * 70
+                        c.drawRect(x - 2.5f, 0f, x + 2.5f, 18f, p)
                     }
                 }
-                c.translate(0, 36);
+                c.translate(0f, 36f)
             }
-            c.restore();
+            c.restore()
         }
 
-        private void drawOctaves(Canvas c, Paint p) {
-            p.setColor(Color.BLACK);
-            p.setTextSize(8);
-            c.save();
-            c.translate(3, 17);
-            for (int i = 1; i < mTracks.size(); i++) {
-                int octave = mOctave[i];
-                c.drawText(octave + "", 2.7f, 28, p);
-                c.drawText(octave + 1 + "", 72.7f, 28, p);
-                c.translate(0, 36);
+        private fun drawOctaves(c: Canvas, p: Paint) {
+            p.color = Color.BLACK
+            p.textSize = 8f
+            c.save()
+            c.translate(3f, 17f)
+            for (i in 1 until mTracks!!.size) {
+                val octave = mOctave[i].toInt()
+                c.drawText(octave.toString() + "", 2.7f, 28f, p)
+                c.drawText((octave + 1).toString() + "", 72.7f, 28f, p)
+                c.translate(0f, 36f)
             }
-            c.restore();
+            c.restore()
         }
 
-        private void drawKeys(Canvas c, Paint p) {
-            c.save();
-            c.translate(3, 17);
-            p.setColor(0xFF000000);
-            for (int j = 1; j < mTracks.size(); j++) {
-                for (int i = 0; i < (14 + 1) * 10; i += 10) {
-                    c.drawLine(i, 0, i, 30, p);
+        private fun drawKeys(c: Canvas, p: Paint) {
+            c.save()
+            c.translate(3f, 17f)
+            p.color = -0x1000000
+            for (j in 1 until mTracks!!.size) {
+                run {
+                    var i = 0
+                    while (i < (14 + 1) * 10) {
+                        c.drawLine(i.toFloat(), 0f, i.toFloat(), 30f, p)
+                        i += 10
+                    }
                 }
-                for (int i = 0; i < (14 + 1) * 10; i += 10) {
-                    int t = i / 10 % 7;
-                    if (t != 0 && t != 3)
-                        c.drawRect(i - 2.5f, 0, i + 2.5f, 18, p);
+                var i = 0
+                while (i < (14 + 1) * 10) {
+                    val t = i / 10 % 7
+                    if (t != 0 && t != 3) {
+                        c.drawRect(i - 2.5f, 0f, i + 2.5f, 18f, p)
+                    }
+                    i += 10
                 }
-                c.translate(0, 36);
+                c.translate(0f, 36f)
             }
-            c.restore();
+            c.restore()
         }
 
-        private void drawPortamento(Canvas c, Paint p, int[] freqNo) {
-            p.setColor(Color.BLUE);
-            c.save();
-            c.translate(0, 17 - 36);
-            for (int i = 1; i < mTracks.size(); i++) {
-                c.translate(0, 36);
-                int dep = mPorDepth[i];
-                if (dep == 0 || mNumber[i].isEmpty()) continue;
-                int start_center;
-                float now_pos;
-                {
-                    int mkey = mNumber[i].get(0) + dep;
-                    byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
-                    int octavepos = octave - mOctave[i];
-                    int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
-                    int pos = KEY_DRAW_POS[key];
-                    start_center = 3 + pos * 10 + (KEY_IS_WHITE[key] ? 5 : 0);
-                    start_center += octavepos * 70;
+        private fun drawPortamento(c: Canvas, p: Paint, freqNo: IntArray) {
+            p.color = Color.BLUE
+            c.save()
+            c.translate(0f, (17 - 36).toFloat())
+            for (i in 1 until mTracks!!.size) {
+                c.translate(0f, 36f)
+                val dep = mPorDepth[i]
+                if (dep == 0 || mNumber[i]!!.isEmpty()) continue
+                var start_center: Int
+                var now_pos: Float
+                run {
+                    val mkey = mNumber[i]!![0] + dep
+                    val octave = (if (mkey < 0) (mkey + 1) / 12 - 1 else mkey / 12).toByte()
+                    val octavepos = octave - mOctave[i]
+                    val key = if (mkey % 12 >= 0) mkey % 12 else mkey % 12 + 12
+                    val pos = KEY_DRAW_POS[key]
+                    start_center = 3 + pos * 10 + if (KEY_IS_WHITE[key]) 5 else 0
+                    start_center += octavepos * 70
                 }
-                {
-                    int nowtune = freqNo[i];
-                    int mkey = nowtune / 100;
-                    byte octave = (byte) (mkey < 0 ? (mkey + 1) / 12 - 1 : mkey / 12);
-                    int octavepos = octave - mOctave[i];
-                    int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
-                    int pos = KEY_DRAW_POS[key];
-                    int lower_center = 3 + pos * 10 + (KEY_IS_WHITE[key] ? 5 : 0);
-                    lower_center += octavepos * 70;
-                    int diff = KEY_IS_WHITE[key] && KEY_IS_WHITE[(key + 1) % 12] ? 10 : 5;
-                    now_pos = lower_center + diff * (float) (nowtune % 100) / 100;
+                run {
+                    val nowtune = freqNo[i]
+                    val mkey = nowtune / 100
+                    val octave = (if (mkey < 0) (mkey + 1) / 12 - 1 else mkey / 12).toByte()
+                    val octavepos = octave - mOctave[i]
+                    val key = if (mkey % 12 >= 0) mkey % 12 else mkey % 12 + 12
+                    val pos = KEY_DRAW_POS[key]
+                    var lower_center = 3 + pos * 10 + if (KEY_IS_WHITE[key]) 5 else 0
+                    lower_center += octavepos * 70
+                    val diff = if (KEY_IS_WHITE[key] && KEY_IS_WHITE[(key + 1) % 12]) 10 else 5
+                    now_pos = lower_center + diff * (nowtune % 100).toFloat() / 100
                 }
-                if (start_center < 3) start_center = 3;
-                if (start_center > 143) start_center = 143;
-                c.drawRect(start_center, 20, now_pos, 27, p);
+                if (start_center < 3) start_center = 3
+                if (start_center > 143) start_center = 143
+                c.drawRect(start_center.toFloat(), 20f, now_pos, 27f, p)
             }
-            c.restore();
+            c.restore()
         }
 
-        private void drawKeyboards(Canvas c, Paint p) {
-            c.save();
-            c.translate(3, 17);
-            p.setColor(0xFFFFFFFF);
-            for (int j = 1; j < mTracks.size(); j++) {
-                c.drawRect(0, 0, 140, 30, p);
-                c.translate(0, 36);
+        private fun drawKeyboards(c: Canvas, p: Paint) {
+            c.save()
+            c.translate(3f, 17f)
+            p.color = -0x1
+            for (j in 1 until mTracks!!.size) {
+                c.drawRect(0f, 0f, 140f, 30f, p)
+                c.translate(0f, 36f)
             }
-            c.restore();
+            c.restore()
+        }
+
+        companion object {
+            private val table =
+                arrayOf("c", "c+", "d", "d+", "e", "f", "f+", "g", "g+", "a", "a+", "b")
+            private const val FPS_REFRESH_TIME = 3000
+            private val KEY_IS_WHITE = booleanArrayOf(
+                true,
+                false,
+                true,
+                false,
+                true,
+                true,
+                false,
+                true,
+                false,
+                true,
+                false,
+                true
+            )
+            private val KEY_DRAW_POS = intArrayOf(0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6)
         }
     }
-
 }
