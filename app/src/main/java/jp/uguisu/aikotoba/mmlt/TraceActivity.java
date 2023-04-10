@@ -284,7 +284,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             p.setColor(Color.RED);
             c.save();
             c.translate(0, 17);
-            for (int i = 1, size = mTracks.size(); i < size; i++) {
+            for (int i = 1; i < mTracks.size(); i++) {
                 for (int mkey : mNumber[i]) {
                     int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
                     boolean bottom = KEY_IS_WHITE[key];
@@ -308,7 +308,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             p.setColor(Color.RED);
             c.save();
             c.translate(0, 17);
-            for (int i = 1, size = mTracks.size(); i < size; i++) {
+            for (int i = 1; i < mTracks.size(); i++) {
                 for (int mkey : mNumber[i]) {
                     int key = mkey % 12 >= 0 ? mkey % 12 : mkey % 12 + 12;
                     boolean bottom = KEY_IS_WHITE[key];
@@ -333,7 +333,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             p.setTextSize(8);
             c.save();
             c.translate(3, 17);
-            for (int i = 1, size = mTracks.size(); i < size; i++) {
+            for (int i = 1; i < mTracks.size(); i++) {
                 int octave = mOctave[i];
                 c.drawText(octave + "", 2.7f, 28, p);
                 c.drawText(octave + 1 + "", 72.7f, 28, p);
@@ -346,7 +346,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             c.save();
             c.translate(3, 17);
             p.setColor(0xFF000000);
-            for (int j = 1, len = mTracks.size(); j < len; j++) {
+            for (int j = 1; j < mTracks.size(); j++) {
                 for (int i = 0; i < (14 + 1) * 10; i += 10) {
                     c.drawLine(i, 0, i, 30, p);
                 }
@@ -364,7 +364,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             p.setColor(Color.BLUE);
             c.save();
             c.translate(0, 17 - 36);
-            for (int i = 1, size = mTracks.size(); i < size; i++) {
+            for (int i = 1; i < mTracks.size(); i++) {
                 c.translate(0, 36);
                 int dep = mPorDepth[i];
                 if (dep == 0 || mNumber[i].isEmpty()) continue;
@@ -402,7 +402,7 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
             c.save();
             c.translate(3, 17);
             p.setColor(0xFFFFFFFF);
-            for (int j = 1, len = mTracks.size(); j < len; j++) {
+            for (int j = 1; j < mTracks.size(); j++) {
                 c.drawRect(0, 0, 140, 30, p);
                 c.translate(0, 36);
             }

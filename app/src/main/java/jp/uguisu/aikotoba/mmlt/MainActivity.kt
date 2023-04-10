@@ -322,13 +322,8 @@ class MainActivity : ComponentActivity(), OnSeekBarChangeListener, View.OnClickL
         override fun onCompileCompleted(warnings: String) {
             mWarnAdapter.clear()
             if (warnings != "") {
-                val s = warnings.split("\n".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-                var i = 0
-                val len = s.size
-                while (i < len) {
-                    mWarnAdapter.add(s[i])
-                    i++
-                }
+                val s = warnings.split("\n".toRegex()).dropLastWhile { it.isEmpty() }
+                mWarnAdapter.addAll(s)
             } else {
                 val title = mFlmml!!.metaTitle
                 val artist = mFlmml!!.metaArtist
