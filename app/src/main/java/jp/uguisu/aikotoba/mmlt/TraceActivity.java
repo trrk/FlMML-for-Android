@@ -275,7 +275,6 @@ public class TraceActivity extends Activity implements SurfaceHolder.Callback, V
                 // ANR となることがあった (環境によるかもしれない)
                 synchronized (this) {
                     if (!unlockNeeded) {
-                        Log.v("TT", "LOCK");
                         break;
                     }
                     mHolder.unlockCanvasAndPost(c);
