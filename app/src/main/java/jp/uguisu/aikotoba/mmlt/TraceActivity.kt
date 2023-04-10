@@ -12,52 +12,62 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
-import android.view.View.OnTouchListener
 import com.txt_nifty.sketch.flmml.FlMML
 import com.txt_nifty.sketch.flmml.MStatus
 import com.txt_nifty.sketch.flmml.MTrack
 
-class TraceActivity : Activity(), SurfaceHolder.Callback, OnTouchListener {
-    private val mTracks: ArrayList<MTrack>? = FlMML.getStaticInstance().rawMML.rawTracks
-    private var mRunner: Runner? = null
-    private var preY = 0
+class TraceActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (mTracks == null || mTracks.size == 0) {
-            finish()
-        }
+        val tracks: ArrayList<MTrack>? = FlMML.getStaticInstance().rawMML.rawTracks
 
+        if (tracks == null || tracks.size == 0) {
+            finish()
+        } else {
+            initView(tracks)
+        }
+    }
+
+    private fun initView(tracks: ArrayList<MTrack>) {
         val surfaceView = SurfaceView(this)
         setContentView(surfaceView)
         volumeControlStream = AudioManager.STREAM_MUSIC
-        surfaceView.setOnTouchListener(this)
-        surfaceView.holder.addCallback(this)
-    }
 
-    override fun surfaceCreated(surfaceHolder: SurfaceHolder) {}
+        var mRunner: Runner? = null
 
-    override fun surfaceChanged(surfaceHolder: SurfaceHolder, i: Int, i1: Int, i2: Int) {
-        mRunner?.finish()
+        val touchListener = object: View.OnTouchListener {
+            private var preY = 0
 
-        mRunner = Runner(surfaceHolder, mTracks!!)
-        Thread(mRunner).start()
-    }
-
-    override fun surfaceDestroyed(surfaceHolder: SurfaceHolder) {
-        mRunner!!.finish()
-    }
-
-    override fun onTouch(v: View, event: MotionEvent): Boolean {
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> preY = event.y.toInt()
-            MotionEvent.ACTION_MOVE -> {
-                val y = event.y.toInt()
-                mRunner!!.scroll(y - preY)
-                preY = y
+            override fun onTouch(view: View, event: MotionEvent): Boolean {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> preY = event.y.toInt()
+                    MotionEvent.ACTION_MOVE -> {
+                        val y = event.y.toInt()
+                        mRunner!!.scroll(y - preY)
+                        preY = y
+                    }
+                }
+                return true
             }
         }
-        return true
+        val surfaceHolderCallback = object : SurfaceHolder.Callback {
+            override fun surfaceCreated(surfaceHolder: SurfaceHolder) {}
+
+            override fun surfaceChanged(surfaceHolder: SurfaceHolder, i: Int, i1: Int, i2: Int) {
+                mRunner?.finish()
+
+                mRunner = Runner(surfaceHolder, tracks)
+                Thread(mRunner).start()
+            }
+
+            override fun surfaceDestroyed(surfaceHolder: SurfaceHolder) {
+                mRunner!!.finish()
+            }
+        }
+
+        surfaceView.setOnTouchListener(touchListener)
+        surfaceView.holder.addCallback(surfaceHolderCallback)
     }
 
     private class Runner constructor(
