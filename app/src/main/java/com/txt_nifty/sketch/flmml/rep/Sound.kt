@@ -1,177 +1,162 @@
-package com.txt_nifty.sketch.flmml.rep;
+package com.txt_nifty.sketch.flmml.rep
 
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.os.Build;
-import android.util.Log;
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
+import android.os.Build
+import android.util.Log
 
-import static android.media.AudioFormat.ENCODING_PCM_16BIT;
-import static android.media.AudioFormat.ENCODING_PCM_8BIT;
-import static android.media.AudioFormat.ENCODING_PCM_FLOAT;
+class Sound(format: Int, w: Writer) {
+    private val mWriteRunnable: WriteRunnable
+    private val mTrack: AudioTrack
+    private var mVolume = 127
 
-public class Sound {
-
-    public static final int[] SUPPORTED_ENCODINGS;
-    public static final int RECOMMENDED_ENCODING;
-    private static final int CHANNEL_STEREO;
-
-    static {
-        if (Build.VERSION.SDK_INT >= 5)
-            CHANNEL_STEREO = AudioFormat.CHANNEL_OUT_STEREO;
-        else
-            CHANNEL_STEREO = AudioFormat.CHANNEL_CONFIGURATION_STEREO;
-
-        // 最後が RECOMMENDED_ENCODING となる
-        SUPPORTED_ENCODINGS = Build.VERSION.SDK_INT >= 21 ? new int[]{
-            ENCODING_PCM_8BIT, ENCODING_PCM_16BIT, ENCODING_PCM_FLOAT
-        } : new int[]{
-            ENCODING_PCM_8BIT, ENCODING_PCM_16BIT
-        };
-
-        RECOMMENDED_ENCODING = SUPPORTED_ENCODINGS[SUPPORTED_ENCODINGS.length - 1];
+    init {
+        mTrack = AudioTrack(
+            AudioManager.STREAM_MUSIC,
+            44100,
+            CHANNEL_STEREO,
+            format,
+            AudioTrack.getMinBufferSize(44100, CHANNEL_STEREO, format),
+            AudioTrack.MODE_STREAM
+        )
+        mWriteRunnable = WriteRunnable(w)
+        Thread(mWriteRunnable, "WaveWriter").start()
     }
 
-    private final WriteRunnable mWriteRunnable;
-    private final AudioTrack mTrack;
-    private int mVolume = 127;
+    constructor(w: Writer) : this(RECOMMENDED_ENCODING, w)
 
-    public Sound(int format, Writer w) {
-        mTrack = new AudioTrack(AudioManager.STREAM_MUSIC, 44100, CHANNEL_STEREO, format, AudioTrack.getMinBufferSize(44100, CHANNEL_STEREO, format), AudioTrack.MODE_STREAM);
-        mWriteRunnable = new WriteRunnable(w);
-        new Thread(mWriteRunnable, "WaveWriter").start();
+    val playbackMSec: Int
+        get() = ((mTrack.playbackHeadPosition ushr 2) / 11.025).toInt()
+
+    fun start() {
+        mWriteRunnable.start()
     }
 
-    public Sound(Writer w) {
-        this(RECOMMENDED_ENCODING, w);
+    fun startPlaying() {
+        mTrack.play()
     }
 
-    public static ConvertedBufferHolder makeBufferHolder(Sound s, int size) {
-        switch (s.getOutputFormat()) {
-            case ENCODING_PCM_8BIT:
-                return new ByteBufferHolder(size);
-            case ENCODING_PCM_16BIT:
-                return new ShortBufferHolder(size);
-            case ENCODING_PCM_FLOAT:
-                return new FloatBufferHolder(size);
-            default:
-                throw new IllegalArgumentException();
+    fun pause() {
+        mWriteRunnable.pause()
+    }
+
+    fun stop() {
+        mWriteRunnable.stop()
+    }
+
+    // (linear gain)
+    var volume: Int
+        get() = mVolume
+        set(x) {
+            mVolume = x
+            val vol = x * AudioTrack.getMaxVolume() / 127
+            mTrack.setStereoVolume(vol, vol)
         }
+    val outputFormat: Int
+        get() = mTrack.audioFormat
+
+    fun release() {
+        mWriteRunnable.finish()
     }
 
-    public int getPlaybackMSec() {
-        return (int) ((mTrack.getPlaybackHeadPosition() >>> 2) / 11.025);
+    interface Writer {
+        fun onSampleData(o: AudioTrack?)
     }
 
-    public void start() {
-        mWriteRunnable.start();
-    }
+    private inner class WriteRunnable internal constructor(val writer: Writer) : Runnable {
+        @Volatile
+        private var wait = true
 
-    public void startPlaying() {
-        mTrack.play();
-    }
+        @Volatile
+        private var running = false
 
-    public void pause() {
-        mWriteRunnable.pause();
-    }
+        @Volatile
+        private var pauseReq = false
 
-    public void stop() {
-        mWriteRunnable.stop();
-    }
-
-    public int getVolume() {
-        return mVolume;
-    }
-
-    public void setVolume(int x) { // (linear gain)
-        mVolume = x;
-        float vol = x * AudioTrack.getMaxVolume() / 127;
-        mTrack.setStereoVolume(vol, vol);
-    }
-
-    public int getOutputFormat() {
-        return mTrack.getAudioFormat();
-    }
-
-    public void release() {
-        mWriteRunnable.finish();
-    }
-
-    public interface Writer {
-        void onSampleData(AudioTrack o);
-    }
-
-    private class WriteRunnable implements Runnable {
-
-        Writer writer;
-        private volatile boolean wait = true;
-        private volatile boolean running = false;
-        private volatile boolean pauseReq = false;
-
-        WriteRunnable(Writer w) {
-            writer = w;
+        fun finish() {
+            Log.v("Sound-Thread", "finishReq")
+            running = false
+            wait = false
+            synchronized(this) { (this as Object).notifyAll() }
         }
 
-        public void finish() {
-            Log.v("Sound-Thread", "finishReq");
-            running = false;
-            wait = false;
-            synchronized (this) {
-                this.notifyAll();
+        fun stop() {
+            Log.v("Sound-Thread", "stopReq")
+            running = false
+            synchronized(this) {
+                val flush = mTrack.playState != AudioTrack.PLAYSTATE_STOPPED
+                mTrack.pause()
+                if (flush) mTrack.flush()
+                mTrack.play()
+                mTrack.stop()
+            }
+            Log.v("Sound-Thread", "stop")
+        }
+
+        fun pause() {
+            Log.v("Sound-Thread", "pauseReq")
+            pauseReq = true
+        }
+
+        fun start() {
+            if (!pauseReq && running) return
+            Log.v("Sound-Thread", "start")
+            synchronized(this) {
+                pauseReq = false
+                running = true
+                (this as Object).notifyAll()
             }
         }
 
-        public void stop() {
-            Log.v("Sound-Thread", "stopReq");
-            running = false;
-            synchronized (this) {
-                boolean flush = mTrack.getPlayState() != AudioTrack.PLAYSTATE_STOPPED;
-                mTrack.pause();
-                if (flush)
-                    mTrack.flush();
-                mTrack.play();
-                mTrack.stop();
-            }
-            Log.v("Sound-Thread", "stop");
-        }
-
-        public void pause() {
-            Log.v("Sound-Thread", "pauseReq");
-            pauseReq = true;
-        }
-
-        public void start() {
-            if (!pauseReq && running) return;
-            Log.v("Sound-Thread", "start");
-            synchronized (this) {
-                pauseReq = false;
-                running = true;
-                this.notifyAll();
-            }
-        }
-
-        @Override
-        public void run() {
-            synchronized (this) {
+        override fun run() {
+            synchronized(this) {
                 while (wait) {
                     if (running) {
                         if (pauseReq) {
-                            Log.v("Sound-Thread", "pause");
-                            mTrack.pause();
-                            running = false;
-                        } else
-                            writer.onSampleData(mTrack);
-                    } else
-                        try {
-                            this.wait();
-                        } catch (InterruptedException e) {
-                            // 何もしない
-                        }
+                            Log.v("Sound-Thread", "pause")
+                            mTrack.pause()
+                            running = false
+                        } else writer.onSampleData(mTrack)
+                    } else try {
+                        (this as Object).wait()
+                    } catch (e: InterruptedException) {
+                        // 何もしない
+                    }
                 }
             }
-            mTrack.release();
-            Log.v("Sound-Thread", "finish");
+            mTrack.release()
+            Log.v("Sound-Thread", "finish")
         }
     }
 
+    companion object {
+        private val CHANNEL_STEREO = if (Build.VERSION.SDK_INT >= 5)
+            AudioFormat.CHANNEL_OUT_STEREO else
+            AudioFormat.CHANNEL_CONFIGURATION_STEREO
+
+        // 最後が RECOMMENDED_ENCODING となる
+        val SUPPORTED_ENCODINGS = if (Build.VERSION.SDK_INT >= 21) {
+            intArrayOf(
+                AudioFormat.ENCODING_PCM_8BIT,
+                AudioFormat.ENCODING_PCM_16BIT,
+                AudioFormat.ENCODING_PCM_FLOAT
+            )
+        } else {
+            intArrayOf(
+                AudioFormat.ENCODING_PCM_8BIT, AudioFormat.ENCODING_PCM_16BIT
+            )
+        }
+
+        val RECOMMENDED_ENCODING = SUPPORTED_ENCODINGS[SUPPORTED_ENCODINGS.size - 1]
+
+        fun makeBufferHolder(s: Sound, size: Int): ConvertedBufferHolder {
+            return when (s.outputFormat) {
+                AudioFormat.ENCODING_PCM_8BIT -> ByteBufferHolder(size)
+                AudioFormat.ENCODING_PCM_16BIT -> ShortBufferHolder(size)
+                AudioFormat.ENCODING_PCM_FLOAT -> FloatBufferHolder(size)
+                else -> throw IllegalArgumentException()
+            }
+        }
+    }
 }
