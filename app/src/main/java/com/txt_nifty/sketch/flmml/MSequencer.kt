@@ -1,366 +1,368 @@
-package com.txt_nifty.sketch.flmml;
+package com.txt_nifty.sketch.flmml
 
-import android.media.AudioTrack;
-import android.os.Handler;
-import android.util.Log;
+import android.media.AudioTrack
+import android.os.Handler
+import android.util.Log
+import com.txt_nifty.sketch.flmml.rep.ConvertedBufferHolder
+import com.txt_nifty.sketch.flmml.rep.EventDispatcher
+import com.txt_nifty.sketch.flmml.rep.Sound
 
-import com.txt_nifty.sketch.flmml.rep.ConvertedBufferHolder;
-import com.txt_nifty.sketch.flmml.rep.EventDispatcher;
-import com.txt_nifty.sketch.flmml.rep.Sound;
+class MSequencer @JvmOverloads internal constructor(private val mMultiple: Int = 32) :
+    EventDispatcher(), Sound.Writer {
+    private val mBufferingRunnable: BufferingRunnable
+    private val mDoubleBuffer: Array<DoubleArray>
+    private val mTrackArr: ArrayList<MTrack>
+    private val mRestTimer: Runnable
+    private val mHandler: Handler
+    private val mBufferLock = Any()
 
-import java.util.ArrayList;
+    @Volatile
+    private var mBuffStop: Boolean
 
-public class MSequencer extends EventDispatcher implements Sound.Writer {
+    @Volatile
+    private var mSound: Sound
 
-    public static final int BUFFER_SIZE = 8192;
-    public static final int RATE44100 = 44100;
-    private static final int STATUS_STOP = 0;
-    private static final int STATUS_PAUSE = 1;
-    private static final int STATUS_BUFFERING = 2;
-    private static final int STATUS_PLAY = 3;
-    private static final int STATUS_LAST = 4;
-    private static int sOutputType = Sound.RECOMMENDED_ENCODING;
-    private final int mMultiple;
-    private final BufferingRunnable mBufferingRunnable;
-    private final double[][] mDoubleBuffer;
-    private final ArrayList<MTrack> mTrackArr;
-    private final Runnable mRestTimer;
-    private final Handler mHandler;
-    private final Object mBufferLock = new Object();
-    private volatile boolean mBuffStop;
-    private volatile Sound mSound;
-    private volatile ConvertedBufferHolder[] mBufferHolder;
-    private volatile int mPlaySide;
-    private volatile int mPlaySize;
-    private volatile boolean mBufferCompleted;
-    private volatile long mOutputChangedPos;
-    private volatile int mStatus;
+    private val mBufferHolder: Array<ConvertedBufferHolder?>
 
-    MSequencer() {
-        this(32);
-    }
+    @Volatile
+    private var mPlaySide: Int
 
-    MSequencer(int multiple) {
-        mMultiple = multiple;
-        mTrackArr = new ArrayList<>();
-        int bufsize = MSequencer.BUFFER_SIZE * mMultiple * 2;
-        mDoubleBuffer = new double[2][bufsize];
-        mPlaySide = 1;
-        mPlaySize = 0;
-        mBufferCompleted = false;
-        mSound = new Sound(sOutputType, this);
-        mBufferHolder = new ConvertedBufferHolder[2];
-        for (int i = 0; i < 2; i++) {
-            mBufferHolder[i] = Sound.makeBufferHolder(mSound, bufsize);
+    @Volatile
+    private var mPlaySize: Int
+
+    @Volatile
+    private var mBufferCompleted: Boolean
+
+    @Volatile
+    private var mOutputChangedPos: Long
+
+    @Volatile
+    private var mStatus = 0
+
+    init {
+        mTrackArr = ArrayList()
+        val bufsize = BUFFER_SIZE * mMultiple * 2
+        mDoubleBuffer = Array(2) { DoubleArray(bufsize) }
+        mPlaySide = 1
+        mPlaySize = 0
+        mBufferCompleted = false
+        mSound = Sound(outputType, this)
+        mBufferHolder = arrayOfNulls(2)
+        for (i in 0..1) {
+            mBufferHolder[i] = Sound.makeBufferHolder(mSound, bufsize)
         }
-        mOutputChangedPos = 0;
-        setMasterVolume(100);
-        mHandler = new Handler();
-        mRestTimer = new Runnable() {
-            @Override
-            public void run() {
-                onStopReq();
-            }
-        };
-        stop();
-        mBufferingRunnable = new BufferingRunnable();
-        mBuffStop = true;
-        Thread thread = new Thread(mBufferingRunnable, "MSequencer-Buffering");
-        thread.setDaemon(true);
-        synchronized (mBufferingRunnable) {
-            thread.start();
+        mOutputChangedPos = 0
+        setMasterVolume(100)
+        mHandler = Handler()
+        mRestTimer = Runnable { onStopReq() }
+        stop()
+        mBufferingRunnable = BufferingRunnable()
+        mBuffStop = true
+        val thread = Thread(mBufferingRunnable, "MSequencer-Buffering")
+        thread.isDaemon = true
+        synchronized(mBufferingRunnable) {
+            thread.start()
             try {
                 // 初期化待ち
-                mBufferingRunnable.wait();
-            } catch (InterruptedException e) {
+                (mBufferingRunnable as Object).wait()
+            } catch (e: InterruptedException) {
                 // 何もしない
             }
-            if (mBufferingRunnable.bootError != null)
-                throw mBufferingRunnable.bootError;
+            if (mBufferingRunnable.bootError != null) throw mBufferingRunnable.bootError!!
         }
     }
 
-    public static void setOutput(int type) {
-        sOutputType = type;
-    }
-
-    public static int getOutputType() {
-        return sOutputType;
-    }
-
-    private void prepareSound(boolean resume) {
-        if (mSound.getOutputFormat() != sOutputType) {
-            Sound newsound = new Sound(sOutputType, this);
-            newsound.setVolume(mSound.getVolume());
-            for (int i = 0, bufsize = MSequencer.BUFFER_SIZE * mMultiple * 2; i < 2; i++) {
-                mBufferHolder[i] = Sound.makeBufferHolder(newsound, bufsize);
+    private fun prepareSound(resume: Boolean) {
+        if (mSound.outputFormat != outputType) {
+            val newsound = Sound(outputType, this)
+            newsound.volume = mSound.volume
+            var i = 0
+            val bufsize = BUFFER_SIZE * mMultiple * 2
+            while (i < 2) {
+                mBufferHolder[i] = Sound.makeBufferHolder(newsound, bufsize)
+                i++
             }
             if (resume) {
-                mOutputChangedPos = getNowMSec();
-                mBufferingRunnable.rewriteReq();
+                mOutputChangedPos = nowMSec
+                mBufferingRunnable.rewriteReq()
             }
-            mSound = newsound;
+            mSound = newsound
         }
     }
 
-    public void play() {
+    fun play() {
         if (mStatus != STATUS_PAUSE) {
-            stop();
-            prepareSound(false);
-            synchronized (mTrackArr) {
-                for (int i = 0, len = mTrackArr.size(); i < len; i++) {
-                    mTrackArr.get(i).seekTop();
+            stop()
+            prepareSound(false)
+            synchronized(mTrackArr) {
+                var i = 0
+                val len = mTrackArr.size
+                while (i < len) {
+                    mTrackArr[i].seekTop()
+                    i++
                 }
             }
-            mStatus = STATUS_BUFFERING;
-            mPlaySize = mMultiple;
-            processStart();
+            mStatus = STATUS_BUFFERING
+            mPlaySize = mMultiple
+            processStart()
         } else {
-            mStatus = STATUS_PLAY;
-            prepareSound(true);
-            mSound.start();
-            putRestTimer();
+            mStatus = STATUS_PLAY
+            prepareSound(true)
+            mSound.start()
+            putRestTimer()
         }
     }
 
-    private void putRestTimer() {
-        long totl = getTotalMSec(), now = getNowMSec();
-        mHandler.postDelayed(mRestTimer, now < totl ? totl - now : 0);
+    private fun putRestTimer() {
+        val totl = totalMSec
+        val now = nowMSec
+        mHandler.postDelayed(mRestTimer, if (now < totl) totl - now else 0)
     }
 
-    public void stop() {
-        synchronized (mBufferLock) {
-            mHandler.removeCallbacks(mRestTimer);
-            mStatus = STATUS_STOP;
+    fun stop() {
+        synchronized(mBufferLock) {
+            mHandler.removeCallbacks(mRestTimer)
+            mStatus = STATUS_STOP
         }
-        mSound.stop();
-        mOutputChangedPos = 0;
+        mSound.stop()
+        mOutputChangedPos = 0
     }
 
-    public void pause() {
-        synchronized (mBufferLock) {
-            mHandler.removeCallbacks(mRestTimer);
-            mStatus = STATUS_PAUSE;
+    fun pause() {
+        synchronized(mBufferLock) {
+            mHandler.removeCallbacks(mRestTimer)
+            mStatus = STATUS_PAUSE
         }
-        mSound.pause();
+        mSound.pause()
     }
 
-    public void setMasterVolume(int i) {
-        mSound.setVolume(i);
+    fun setMasterVolume(i: Int) {
+        mSound.volume = i
     }
 
-    public boolean isPlaying() {
-        return (mStatus > STATUS_PAUSE);
-    }
+    val isPlaying: Boolean
+        get() = mStatus > STATUS_PAUSE
+    val isPaused: Boolean
+        get() = mStatus == STATUS_PAUSE
 
-    public boolean isPaused() {
-        return (mStatus == STATUS_PAUSE);
-    }
-
-    public void disconnectAll() {
-        synchronized (mTrackArr) { //バッファリングが止まるのを待つ
-            mBuffStop = true;
-            mTrackArr.clear();
+    fun disconnectAll() {
+        synchronized(mTrackArr) {
+            //バッファリングが止まるのを待つ
+            mBuffStop = true
+            mTrackArr.clear()
         }
-        mStatus = STATUS_STOP;
+        mStatus = STATUS_STOP
     }
 
-    public void connect(MTrack track) {
-        synchronized (mTrackArr) {
-            mTrackArr.add(track);
-        }
+    fun connect(track: MTrack) {
+        synchronized(mTrackArr) { mTrackArr.add(track) }
     }
 
-    private void reqStop() {
-        onStopReq();
+    private fun reqStop() {
+        onStopReq()
     }
 
-    private void onStopReq() {
-        stop();
-        dispatchEvent(new MMLEvent(MMLEvent.COMPLETE));
+    private fun onStopReq() {
+        stop()
+        dispatchEvent(MMLEvent(MMLEvent.COMPLETE))
     }
 
-    private void reqBuffering() {
-        onBufferingReq();
+    private fun reqBuffering() {
+        onBufferingReq()
     }
 
-    private void onBufferingReq() {
-        pause();
-        mStatus = STATUS_BUFFERING;
+    private fun onBufferingReq() {
+        pause()
+        mStatus = STATUS_BUFFERING
     }
 
-    private void processStart() {
-        mBufferCompleted = false;
-        mBuffStop = false;
-        synchronized (mBufferingRunnable) {
-            mBufferingRunnable.notify();
-        }
+    private fun processStart() {
+        mBufferCompleted = false
+        mBuffStop = false
+        synchronized(mBufferingRunnable) { (mBufferingRunnable as Object).notify() }
     }
 
-    private void processAll() {
-        int sLen = MSequencer.BUFFER_SIZE * mMultiple;
-        ArrayList<MTrack> tracks = mTrackArr;
-        int nLen = tracks.size();
-        double[] buffer = mDoubleBuffer[1 - mPlaySide];
-        for (int i = sLen * 2 - 1; i >= 0; i--) {
-            buffer[i] = 0;
+    private fun processAll() {
+        val sLen = BUFFER_SIZE * mMultiple
+        val tracks = mTrackArr
+        val nLen = tracks.size
+        val buffer = mDoubleBuffer[1 - mPlaySide]
+        for (i in sLen * 2 - 1 downTo 0) {
+            buffer[i] = 0.0
         }
         if (nLen > 0) {
-            mTrackArr.get(MTrack.TEMPO_TRACK).onSampleData(buffer, 0, sLen, false);
+            mTrackArr[MTrack.TEMPO_TRACK].onSampleData(buffer, 0, sLen, false)
         }
-        for (int processTrack = MTrack.FIRST_TRACK; processTrack < nLen; processTrack++) {
-            if (mStatus == STATUS_STOP) return;
-            tracks.get(processTrack).onSampleData(buffer, 0, sLen);
-            if (mStatus == STATUS_BUFFERING)
-                dispatchEvent(new MMLEvent(MMLEvent.BUFFERING, 0, 0, (processTrack + 2) * 100 / (nLen + 1)));
+        for (processTrack in MTrack.FIRST_TRACK until nLen) {
+            if (mStatus == STATUS_STOP) return
+            tracks[processTrack].onSampleData(buffer, 0, sLen)
+            if (mStatus == STATUS_BUFFERING) dispatchEvent(
+                MMLEvent(
+                    MMLEvent.BUFFERING,
+                    0,
+                    0,
+                    (processTrack + 2) * 100 / (nLen + 1)
+                )
+            )
         }
-        mBufferHolder[1 - mPlaySide].convertAndSet(buffer);
-
-        synchronized (mBufferLock) {
-            mBufferCompleted = true;
+        mBufferHolder[1 - mPlaySide]!!.convertAndSet(buffer)
+        synchronized(mBufferLock) {
+            mBufferCompleted = true
             if (mStatus == STATUS_PAUSE && mPlaySize >= mMultiple) {
                 //バッファリング中に一時停止された
-                mPlaySide = 1 - mPlaySide;
-                mPlaySize = 0;
-                processStart();
+                mPlaySide = 1 - mPlaySide
+                mPlaySize = 0
+                processStart()
             }
             if (mStatus == STATUS_BUFFERING) {
-                mStatus = STATUS_PLAY;
-                mPlaySide = 1 - mPlaySide;
-                mPlaySize = 0;
-                processStart();
-                mSound.start();
-                putRestTimer();
+                mStatus = STATUS_PLAY
+                mPlaySide = 1 - mPlaySide
+                mPlaySize = 0
+                processStart()
+                mSound.start()
+                putRestTimer()
             }
         }
     }
 
-    public void onSampleData(AudioTrack track) {
+    override fun onSampleData(track: AudioTrack) {
         if (mPlaySize >= mMultiple) {
-            synchronized (mBufferLock) {
+            synchronized(mBufferLock) {
                 if (mBufferCompleted) {
                     // バッファ完成済みの場合
-                    mPlaySide = 1 - mPlaySide;
-                    mPlaySize = 0;
-                    processStart();
+                    mPlaySide = 1 - mPlaySide
+                    mPlaySize = 0
+                    processStart()
                 } else {
                     //バッファが未完成の場合
-                    reqBuffering();
-                    return;
+                    reqBuffering()
+                    return
                 }
             }
             if (mStatus == STATUS_LAST) {
-                return;
-            } else if (mStatus == STATUS_PLAY && mTrackArr.get(MTrack.TEMPO_TRACK).isEnd()) {
-                mStatus = STATUS_LAST;
+                return
+            } else if (mStatus == STATUS_PLAY && mTrackArr[MTrack.TEMPO_TRACK].isEnd) {
+                mStatus = STATUS_LAST
             }
         }
-        ConvertedBufferHolder bufholder = mBufferHolder[mPlaySide];
-        int base = (BUFFER_SIZE * mPlaySize) * 2;
-        int len = BUFFER_SIZE << 1;
-        int written = bufholder.writeTo(track, base, len);
+        val bufholder = mBufferHolder[mPlaySide]
+        val base = BUFFER_SIZE * mPlaySize * 2
+        val len = BUFFER_SIZE shl 1
+        val written = bufholder!!.writeTo(track, base, len)
         if (written < len) {
             //AudioTrackのバッファがたまった
-            mSound.startPlaying();
-            bufholder.writeTo(track, base + written, len - written);
+            mSound.startPlaying()
+            bufholder.writeTo(track, base + written, len - written)
         }
-        mPlaySize++;
+        mPlaySize++
     }
 
-    public void createPipes(int num) {
-        MChannel.createPipes(num);
+    fun createPipes(num: Int) {
+        MChannel.createPipes(num)
     }
 
-    public void createSyncSources(int num) {
-        MChannel.createSyncSources(num);
+    fun createSyncSources(num: Int) {
+        MChannel.createSyncSources(num)
     }
 
-    public long getTotalMSec() {
-        return mTrackArr.size() <= MTrack.TEMPO_TRACK ? 0 : mTrackArr.get(MTrack.TEMPO_TRACK).getTotalMSec();
-    }
-
-    public long getNowMSec() {
-        long now = mSound.getPlaybackMSec() + mOutputChangedPos, tot = getTotalMSec();
-        return now < tot ? now : tot;
-    }
-
-    public String getNowTimeStr() {
-        int sec = (int) Math.ceil(getNowMSec() / 1000d);
-        StringBuilder sb = new StringBuilder();
-        int smin = sec / 60 % 100, ssec = sec % 60;
-        if (smin < 10) sb.append('0');
-        sb.append(smin).append(':');
-        if (ssec < 10) sb.append('0');
-        sb.append(ssec);
-        return sb.toString();
-    }
-
-    public void release() {
-        mSound.release();
-        mBufferingRunnable.finish();
-    }
-
-    private class BufferingRunnable implements Runnable {
-
-        private volatile boolean rewrite = false;
-        private volatile boolean wait = true;
-        private OutOfMemoryError bootError;
-
-        public void rewriteReq() {
-            rewrite = true;
-            synchronized (this) {
-                this.notify();
-            }
+    val totalMSec: Long
+        get() = if (mTrackArr.size <= MTrack.TEMPO_TRACK) 0 else mTrackArr[MTrack.TEMPO_TRACK].totalMSec
+    val nowMSec: Long
+        get() {
+            val now = mSound.playbackMSec + mOutputChangedPos
+            val tot = totalMSec
+            return if (now < tot) now else tot
+        }
+    val nowTimeStr: String
+        get() {
+            val sec = Math.ceil(nowMSec / 1000.0).toInt()
+            val sb = StringBuilder()
+            val smin = sec / 60 % 100
+            val ssec = sec % 60
+            if (smin < 10) sb.append('0')
+            sb.append(smin).append(':')
+            if (ssec < 10) sb.append('0')
+            sb.append(ssec)
+            return sb.toString()
         }
 
-        public void finish() {
-            wait = false;
-            synchronized (this) {
-                this.notify();
-            }
+    fun release() {
+        mSound.release()
+        mBufferingRunnable.finish()
+    }
+
+    private inner class BufferingRunnable : Runnable {
+        @Volatile
+        private var rewrite = false
+
+        @Volatile
+        private var wait = true
+        var bootError: OutOfMemoryError? = null
+        fun rewriteReq() {
+            rewrite = true
+            synchronized(this) { (this as Object).notify() }
         }
 
-        private synchronized boolean boot() {
-            try {
-                MChannel.boot(MSequencer.BUFFER_SIZE * mMultiple);
-                MOscillator.boot();
-                MEnvelope.boot();
-                return true;
-            } catch (OutOfMemoryError e) {
-                bootError = e;
-                return false;
+        fun finish() {
+            wait = false
+            synchronized(this) { (this as Object).notify() }
+        }
+
+        @Synchronized
+        private fun boot(): Boolean {
+            return try {
+                MChannel.boot(BUFFER_SIZE * mMultiple)
+                MOscillator.boot()
+                MEnvelope.boot()
+                true
+            } catch (e: OutOfMemoryError) {
+                bootError = e
+                false
             } finally {
-                this.notify();
+                (this as Object).notify()
             }
         }
 
-        @Override
-        public void run() {
-            if (!boot()) return;
-            MSequencer m = MSequencer.this;
+        override fun run() {
+            if (!boot()) return
+            val m = this@MSequencer
             while (wait) {
-                if (mBuffStop)
-                    synchronized (this) {
-                        try {
-                            this.wait();
-                            if (rewrite) {
-                                rewrite = false;
-                                mBufferHolder[0].convertAndSet(mDoubleBuffer[0]);
-                                mBufferHolder[1].convertAndSet(mDoubleBuffer[1]);
-                            }
-                        } catch (InterruptedException e) {
-                            // 何もしない
+                if (mBuffStop) synchronized(this) {
+                    try {
+                        (this as Object).wait()
+                        if (rewrite) {
+                            rewrite = false
+                            mBufferHolder[0]!!.convertAndSet(mDoubleBuffer[0])
+                            mBufferHolder[1]!!.convertAndSet(mDoubleBuffer[1])
                         }
+                    } catch (e: InterruptedException) {
+                        // 何もしない
                     }
-                synchronized (mTrackArr) {
+                }
+                synchronized(mTrackArr) {
                     if (!mBuffStop) {
-                        mBuffStop = true;
-                        m.processAll();
+                        mBuffStop = true
+                        m.processAll()
                     }
                 }
             }
-            Log.v("BufferingThread", "finish");
+            Log.v("BufferingThread", "finish")
         }
+    }
 
+    companion object {
+        const val BUFFER_SIZE = 8192
+        const val RATE44100 = 44100
+        private const val STATUS_STOP = 0
+        private const val STATUS_PAUSE = 1
+        private const val STATUS_BUFFERING = 2
+        private const val STATUS_PLAY = 3
+        private const val STATUS_LAST = 4
+        var outputType = Sound.RECOMMENDED_ENCODING
+            private set
+
+        fun setOutput(type: Int) {
+            outputType = type
+        }
     }
 }
