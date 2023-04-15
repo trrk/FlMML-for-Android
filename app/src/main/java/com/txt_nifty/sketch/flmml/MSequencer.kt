@@ -22,7 +22,7 @@ class MSequencer @JvmOverloads internal constructor(private val mMultiple: Int =
     @Volatile
     private var mSound: Sound
 
-    private val mBufferHolder: Array<ConvertedBufferHolder?>
+    private val mBufferHolder: Array<ConvertedBufferHolder>
 
     @Volatile
     private var mPlaySide: Int
@@ -47,10 +47,7 @@ class MSequencer @JvmOverloads internal constructor(private val mMultiple: Int =
         mPlaySize = 0
         mBufferCompleted = false
         mSound = Sound(outputType, this)
-        mBufferHolder = arrayOfNulls(2)
-        for (i in 0..1) {
-            mBufferHolder[i] = Sound.makeBufferHolder(mSound, bufsize)
-        }
+        mBufferHolder = Array (2) { Sound.makeBufferHolder(mSound, bufsize) }
         mOutputChangedPos = 0
         setMasterVolume(100)
         mHandler = Handler()
@@ -76,11 +73,9 @@ class MSequencer @JvmOverloads internal constructor(private val mMultiple: Int =
         if (mSound.outputFormat != outputType) {
             val newsound = Sound(outputType, this)
             newsound.volume = mSound.volume
-            var i = 0
             val bufsize = BUFFER_SIZE * mMultiple * 2
-            while (i < 2) {
+            for (i in mBufferHolder.indices) {
                 mBufferHolder[i] = Sound.makeBufferHolder(newsound, bufsize)
-                i++
             }
             if (resume) {
                 mOutputChangedPos = nowMSec
@@ -95,11 +90,8 @@ class MSequencer @JvmOverloads internal constructor(private val mMultiple: Int =
             stop()
             prepareSound(false)
             synchronized(mTrackArr) {
-                var i = 0
-                val len = mTrackArr.size
-                while (i < len) {
+                for (i in mTrackArr.indices) {
                     mTrackArr[i].seekTop()
-                    i++
                 }
             }
             mStatus = STATUS_BUFFERING
@@ -146,8 +138,7 @@ class MSequencer @JvmOverloads internal constructor(private val mMultiple: Int =
         get() = mStatus == STATUS_PAUSE
 
     fun disconnectAll() {
-        synchronized(mTrackArr) {
-            //バッファリングが止まるのを待つ
+        synchronized(mTrackArr) {  //バッファリングが止まるのを待つ
             mBuffStop = true
             mTrackArr.clear()
         }
@@ -206,6 +197,7 @@ class MSequencer @JvmOverloads internal constructor(private val mMultiple: Int =
             )
         }
         mBufferHolder[1 - mPlaySide]!!.convertAndSet(buffer)
+
         synchronized(mBufferLock) {
             mBufferCompleted = true
             if (mStatus == STATUS_PAUSE && mPlaySize >= mMultiple) {
@@ -359,10 +351,5 @@ class MSequencer @JvmOverloads internal constructor(private val mMultiple: Int =
         private const val STATUS_PLAY = 3
         private const val STATUS_LAST = 4
         var outputType = Sound.RECOMMENDED_ENCODING
-            private set
-
-        fun setOutput(type: Int) {
-            outputType = type
-        }
     }
 }

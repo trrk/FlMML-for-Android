@@ -251,7 +251,7 @@ class MainActivity : ComponentActivity(), OnSeekBarChangeListener, View.OnClickL
             AudioFormat.ENCODING_PCM_8BIT, AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_FLOAT -> {}
             else -> format = Sound.RECOMMENDED_ENCODING
         }
-        MSequencer.setOutput(format)
+        MSequencer.outputType = format
 
         val str = (findViewById<View>(R.id.input) as TextView).text.toString()
         if (!mFlmml!!.isPaused) {
