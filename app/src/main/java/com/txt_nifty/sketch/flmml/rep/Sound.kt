@@ -61,7 +61,7 @@ class Sound(format: Int, w: Writer) {
     }
 
     interface Writer {
-        fun onSampleData(o: AudioTrack?)
+        fun onSampleData(o: AudioTrack)
     }
 
     private inner class WriteRunnable internal constructor(val writer: Writer) : Runnable {
