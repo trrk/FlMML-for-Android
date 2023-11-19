@@ -1,189 +1,152 @@
-package com.txt_nifty.sketch.flmml;
+package com.txt_nifty.sketch.flmml
 
-import android.os.Handler;
+import android.os.Handler
+import com.txt_nifty.sketch.flmml.rep.Callback
 
-import com.txt_nifty.sketch.flmml.rep.Callback;
-
-public class FlMML {
-    private static FlMML sInstance;
-    private final Handler mHandler;
-    private MML mMml;
-    private Listener mListener;
-    private Runnable mOnSecond = new Runnable() {
-        @Override
-        public void run() {
-            onSecond(null);
-            mHandler.postDelayed(this, 995);
+class FlMML private constructor() {
+    private val mHandler = Handler()
+    val mMml: MML
+    private var mListener: Listener? = null
+    private val mOnSecond: Runnable = object : Runnable {
+        override fun run() {
+            onSecond(null)
+            mHandler.postDelayed(this, 995)
         }
-    };
-
-    private FlMML() {
-        mMml = new MML();
-        mHandler = new Handler();
-        init();
     }
 
-    public static FlMML getStaticInstance() {
-        return sInstance == null ? sInstance = new FlMML() : sInstance;
+    init {
+        mMml = MML()
+        init()
     }
 
-    public static FlMML getStaticInstanceIfCreated() {
-        return sInstance;
+    fun setListener(l: Listener?) {
+        mListener = l
     }
 
-    public void setListener(Listener l) {
-        mListener = l;
-    }
-
-    public void init() {
-        mMml.addEventListener(MMLEvent.COMPILE_COMPLETE, new Callback() {
-            @Override
-            public void call(MMLEvent e) {
-                setWarnings(e);
+    fun init() {
+        mMml.addEventListener(MMLEvent.COMPILE_COMPLETE, object : Callback() {
+            override fun call(e: MMLEvent) {
+                setWarnings(e)
             }
-        });
-        mMml.addEventListener(MMLEvent.COMPLETE, new Callback() {
-            @Override
-            public void call(MMLEvent e) {
-                onComplete(e);
+        })
+        mMml.addEventListener(MMLEvent.COMPLETE, object : Callback() {
+            override fun call(e: MMLEvent) {
+                onComplete(e)
             }
-        });
-        mMml.addEventListener(MMLEvent.BUFFERING, new Callback() {
-            @Override
-            public void call(MMLEvent e) {
-                onBuffering(e);
+        })
+        mMml.addEventListener(MMLEvent.BUFFERING, object : Callback() {
+            override fun call(e: MMLEvent) {
+                onBuffering(e)
             }
-        });
+        })
     }
 
-    public void play(String mml) {
-        if (isPaused()) {
-            mHandler.removeCallbacks(mOnSecond);
-            long d = getNowMSec() % 1000;
-            d = d < 500 ? 500 - d : 1500 - d;
-            mHandler.postDelayed(mOnSecond, d);
+    fun play(mml: String) {
+        if (isPaused) {
+            mHandler.removeCallbacks(mOnSecond)
+            var d = nowMSec % 1000
+            d = if (d < 500) 500 - d else 1500 - d
+            mHandler.postDelayed(mOnSecond, d)
         }
-        mMml.play(mml);
+        mMml.play(mml)
     }
 
-    public void stop() {
-        mMml.stop();
-        if (mListener != null)
-            mListener.onTextChanged("");
-        mHandler.removeCallbacks(mOnSecond);
+    fun stop() {
+        mMml.stop()
+        mListener?.onTextChanged("")
+        mHandler.removeCallbacks(mOnSecond)
     }
 
-    public void onComplete(MMLEvent e) {
-        mHandler.removeCallbacks(mOnSecond);
+    fun onComplete(e: MMLEvent) {
+        mHandler.removeCallbacks(mOnSecond)
         if (mListener != null) {
-            mListener.onTextChanged("");
-            mListener.onComplete();
+            mListener!!.onTextChanged("")
+            mListener!!.onComplete()
         }
     }
 
-    public void onBuffering(MMLEvent e) {
+    fun onBuffering(e: MMLEvent) {
         if (e.progress < 100) {
-            if (mListener != null)
-                mListener.onTextChanged("Buffering " + e.progress + "%");
+            mListener?.onTextChanged("Buffering " + e.progress + "%")
         } else {
-            onSecond(e);
-            mHandler.removeCallbacks(mOnSecond);
-            long d = getNowMSec() % 1000;
-            d = d < 500 ? 500 - d : 1500 - d;
-            mHandler.postDelayed(mOnSecond, d);
+            onSecond(e)
+            mHandler.removeCallbacks(mOnSecond)
+            var d = nowMSec % 1000
+            d = if (d < 500) 500 - d else 1500 - d
+            mHandler.postDelayed(mOnSecond, d)
         }
     }
 
-    public void onSecond(MMLEvent e) {
-        if (mListener != null)
-            mListener.onTextChanged(getNowTimeStr() + " / " + getTotalTimeStr());
+    fun onSecond(e: MMLEvent?) {
+        mListener?.onTextChanged("$nowTimeStr / $totalTimeStr")
     }
 
-    public void pause() {
-        mMml.pause();
-        mHandler.removeCallbacks(mOnSecond);
+    fun pause() {
+        mMml.pause()
+        mHandler.removeCallbacks(mOnSecond)
     }
 
-    public boolean isPlaying() {
-        return mMml.isPlaying();
+    val isPlaying: Boolean
+        get() = mMml.isPlaying
+    val isPaused: Boolean
+        get() = mMml.isPaused
+
+    fun setMasterVolume(vol: Int) {
+        mMml.setMasterVolume(vol)
     }
 
-    public boolean isPaused() {
-        return mMml.isPaused();
+    val warnings: String
+        get() = mMml.warnings
+
+    fun setWarnings(e: MMLEvent) {
+        mListener?.onCompileCompleted(warnings)
     }
 
-    public void setMasterVolume(int vol) {
-        mMml.setMasterVolume(vol);
+    val totalMSec: Long
+        get() = mMml.totalMSec
+    val totalTimeStr: String
+        get() =/*todo*/
+            if (!mMml.isPlaying) "" else mMml.totalTimeStr
+    val nowMSec: Long
+        get() = mMml.nowMSec
+    val nowTimeStr: String
+        get() =/*todo*/
+            if (!mMml.isPlaying) "" else mMml.nowTimeStr
+    val voiceCount: Int
+        get() = mMml.voiceCount
+    val metaTitle: String
+        get() = mMml.metaTitle
+    val metaComment: String
+        get() = mMml.metaComment
+    val metaArtist: String
+        get() = mMml.metaArtist
+    val metaCoding: String
+        get() = mMml.metaCoding
+
+    fun release() {
+        mMml.release()
     }
 
-    public String getWarnings() {
-        return mMml.getWarnings();
-    }
-
-    public void setWarnings(MMLEvent e) {
-        if (mListener != null)
-            mListener.onCompileCompleted(getWarnings());
-    }
-
-    public long getTotalMSec() {
-        return mMml.getTotalMSec();
-    }
-
-    public String getTotalTimeStr() {
-        /*todo*/
-        if (!mMml.isPlaying()) return "";
-        return mMml.getTotalTimeStr();
-    }
-
-    public long getNowMSec() {
-        return mMml.getNowMSec();
-    }
-
-    public String getNowTimeStr() {
-        /*todo*/
-        if (!mMml.isPlaying()) return "";
-        return mMml.getNowTimeStr();
-    }
-
-    public int getVoiceCount() {
-        return mMml.getVoiceCount();
-    }
-
-    public String getMetaTitle() {
-        return mMml.getMetaTitle();
-    }
-
-    public String getMetaComment() {
-        return mMml.getMetaComment();
-    }
-
-    public String getMetaArtist() {
-        return mMml.getMetaArtist();
-    }
-
-    public String getMetaCoding() {
-        return mMml.getMetaCoding();
-    }
-
-    public MML getRawMML() {
-        return mMml;
-    }
-
-    public void release() {
-        mMml.release();
-    }
-
-    public static class Listener {
-        public void onTextChanged(String text) {
+    open class Listener {
+        open fun onTextChanged(text: String) {
             // いろんなスレッドから呼ばれる
         }
 
-        public void onCompileCompleted(String warnings) {
+        open fun onCompileCompleted(warnings: String) {
             // play()から呼ばれる
         }
 
-        public void onComplete() {
+        open fun onComplete() {
             // Handler経由で呼ばれる
         }
+    }
+
+    companion object {
+        var staticInstanceIfCreated: FlMML? = null
+            private set
+        val staticInstance: FlMML
+            get() = staticInstanceIfCreated ?: FlMML().also {
+                staticInstanceIfCreated = it
+            }
     }
 }

@@ -1,7 +1,7 @@
-package com.txt_nifty.sketch.flmml.rep;
+package com.txt_nifty.sketch.flmml.rep
 
-import com.txt_nifty.sketch.flmml.MMLEvent;
+import com.txt_nifty.sketch.flmml.MMLEvent
 
-public abstract class Callback {
-    public abstract void call(MMLEvent e);
+abstract class Callback {
+    abstract fun call(e: MMLEvent)
 }
