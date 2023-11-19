@@ -53,20 +53,18 @@ public class MPolyChannel implements IChannel {
     }
 
     public int getVoiceCount() {
-        int i;
         int c = 0;
-        for (i = 0; i < mVoiceLen; i++) {
+        for (int i = 0; i < mVoiceLen; i++) {
             c += m_voices[i].getVoiceCount();
         }
         return c;
     }
 
     public void noteOn(int noteNo, int velocity) {
-        int i;
         MChannel vo = null;
 
         // ボイススロットに空きがあれば取ってくる
-        for (i = 0; i < mVoiceLen; i++) {
+        for (int i = 0; i < mVoiceLen; i++) {
             if (!m_voices[i].isPlaying()) {
                 vo = m_voices[i];
                 break;
@@ -75,7 +73,7 @@ public class MPolyChannel implements IChannel {
         // やっぱ埋まってたので一番古いボイスを探す
         if (vo == null) {
             long minId = Long.MAX_VALUE;
-            for (i = 0; i < mVoiceLen; i++) {
+            for (int i = 0; i < mVoiceLen; i++) {
                 if (minId > m_voices[i].getId()) {
                     minId = m_voices[i].getId();
                     vo = m_voices[i];
