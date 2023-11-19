@@ -43,15 +43,15 @@ class MEnvelope(attack: Double, decay: Double, sustain: Double, release: Double)
         if (isPlaying && !isReleasing) {
             mCounter = mTimeInSamples
             mCurrentPoint = mEnvelopePoint
-            while (mCurrentPoint.next != null && mCounter >= mCurrentPoint.next.time) {
-                mCurrentPoint = mCurrentPoint.next
+            while (mCurrentPoint.next != null && mCounter >= mCurrentPoint.next!!.time) {
+                mCurrentPoint = mCurrentPoint.next!!
                 mCounter -= mCurrentPoint.time
             }
             if (mCurrentPoint.next == null) {
                 mCurrentVal = mCurrentPoint.level
             } else {
                 mStep =
-                    (mCurrentPoint.next.level - mCurrentPoint.level) / mCurrentPoint.next.time
+                    (mCurrentPoint.next!!.level - mCurrentPoint.level) / mCurrentPoint.next!!.time
                 mCurrentVal = mCurrentPoint.level + (mStep * mCounter)
             }
         }
@@ -71,7 +71,7 @@ class MEnvelope(attack: Double, decay: Double, sustain: Double, release: Double)
         mCurrentPoint = mEnvelopePoint
         mCurrentPoint.level = if (zeroStart != 0) 0.0 else mCurrentVal
         mCurrentVal = mCurrentPoint.level
-        mStep = (1.0 - mCurrentVal) / mCurrentPoint.next.time
+        mStep = (1.0 - mCurrentVal) / mCurrentPoint.next!!.time
         mCounter = 0
         mTimeInSamples = mCounter
     }
@@ -93,16 +93,16 @@ class MEnvelope(attack: Double, decay: Double, sustain: Double, release: Double)
                 mCurrentVal = mCurrentPoint.level
             } else {
                 var processed = false
-                while (mCounter >= mCurrentPoint.next.time) {
+                while (mCounter >= mCurrentPoint.next!!.time) {
                     mCounter = 0
-                    mCurrentPoint = mCurrentPoint.next
+                    mCurrentPoint = mCurrentPoint.next!!
                     if (mCurrentPoint.next == null) {
                         mCurrentVal = mCurrentPoint.level
                         processed = true
                         break
                     } else {
                         mStep =
-                            (mCurrentPoint.next.level - mCurrentPoint.level) / mCurrentPoint.next.time
+                            (mCurrentPoint.next!!.level - mCurrentPoint.level) / mCurrentPoint.next!!.time
                         mCurrentVal = mCurrentPoint.level
                         processed = true
                     }
@@ -136,16 +136,16 @@ class MEnvelope(attack: Double, decay: Double, sustain: Double, release: Double)
                     // mCurrentVal = mCurrentPoint.level;
                 } else {
                     var processed = false
-                    while (mCounter >= mCurrentPoint.next.time) {
+                    while (mCounter >= mCurrentPoint.next!!.time) {
                         mCounter = 0
-                        mCurrentPoint = mCurrentPoint.next
+                        mCurrentPoint = mCurrentPoint.next!!
                         if (mCurrentPoint.next == null) {
                             mCurrentVal = mCurrentPoint.level
                             processed = true
                             break
                         } else {
                             mStep =
-                                (mCurrentPoint.next.level - mCurrentPoint.level) / mCurrentPoint.next.time
+                                (mCurrentPoint.next!!.level - mCurrentPoint.level) / mCurrentPoint.next!!.time
                             mCurrentVal = mCurrentPoint.level
                             processed = true
                         }
@@ -188,16 +188,16 @@ class MEnvelope(attack: Double, decay: Double, sustain: Double, release: Double)
                     mCurrentVal = mCurrentPoint.level
                 } else {
                     var processed = false
-                    while (mCounter >= mCurrentPoint.next.time) {
+                    while (mCounter >= mCurrentPoint.next!!.time) {
                         mCounter = 0
-                        mCurrentPoint = mCurrentPoint.next
+                        mCurrentPoint = mCurrentPoint.next!!
                         if (mCurrentPoint.next == null) {
                             mCurrentVal = mCurrentPoint.level
                             processed = true
                             break
                         } else {
                             mStep =
-                                (mCurrentPoint.next.level - mCurrentPoint.level) / mCurrentPoint.next.time
+                                (mCurrentPoint.next!!.level - mCurrentPoint.level) / mCurrentPoint.next!!.time
                             mCurrentVal = mCurrentPoint.level
                             processed = true
                         }
