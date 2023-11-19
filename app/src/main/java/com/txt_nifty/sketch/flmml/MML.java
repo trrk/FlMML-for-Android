@@ -982,7 +982,6 @@ public class MML extends EventDispatcher {
     }
 
     protected void processMacro() {
-        int i;
         //OCTAVE REVERSE
         Pattern exp = Pattern.compile("^#OCTAVE\\s+REVERSE\\s*$", Pattern.MULTILINE);
         Matcher matched;
@@ -1025,7 +1024,7 @@ public class MML extends EventDispatcher {
             }
 
             ArrayList<String> fmg = findMetaDescV("FMGAIN");
-            for (i = 0; i < fmg.size(); i++) {
+            for (int i = 0; i < fmg.size(); i++) {
                 MOscOPM.setCommonGain(20.0 * FlMMLUtil.parseInt(fmg.get(i)) / 127.0);
             }
         }
@@ -1041,7 +1040,7 @@ public class MML extends EventDispatcher {
                     mUsingPoly = true;
                     mPolyVoice = Math.min(Math.max(1, FlMMLUtil.parseInt(ss[0])), MAX_POLYVOICE);
                 }
-                for (i = 1; i < ss.length; i++) {
+                for (int i = 1; i < ss.length; i++) {
                     if (ss[i].equals("force")) {
                         mPolyForce = true;
                     }
@@ -1158,7 +1157,7 @@ public class MML extends EventDispatcher {
                                             String argstr = FlMMLUtil.substring(mString, argspos + 1, mString.indexOf("}", argspos));
                                             String[] argst = argstr.split(",");
                                             args = new MacroArgument[argst.length];
-                                            for (i = 0; i < argst.length; i++) {
+                                            for (int i = 0; i < argst.length; i++) {
                                                 tm2.reset(argst[i]);
                                                 String argid = tm2.find() ? tm2.group() : "";
                                                 args[i] = new MacroArgument(argid, i);
@@ -1545,9 +1544,8 @@ public class MML extends EventDispatcher {
     }
 
     public int getVoiceCount() {
-        int i;
         int c = 0;
-        for (i = 0; i < mTracks.size(); i++) {
+        for (int i = 0; i < mTracks.size(); i++) {
             c += mTracks.get(i).getVoiceCount();
         }
         return c;
