@@ -40,5 +40,5 @@ interface IChannel {
     fun setVoiceLimit(voiceLimit: Int)
     fun setHwLfo(data: Int)
     fun reset()
-    fun getSamples(samples: DoubleArray?, max: Int, start: Int, delta: Int)
+    fun getSamples(samples: DoubleArray, max: Int, start: Int, delta: Int)
 }
