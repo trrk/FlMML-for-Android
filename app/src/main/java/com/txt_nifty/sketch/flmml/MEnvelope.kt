@@ -71,7 +71,7 @@ class MEnvelope(attack: Double, decay: Double, sustain: Double, release: Double)
         mCurrentPoint = mEnvelopePoint
         mCurrentPoint.level = if (zeroStart != 0) 0.0 else mCurrentVal
         mCurrentVal = mCurrentPoint.level
-        mStep = (1.0f - mCurrentVal) / mCurrentPoint.next.time
+        mStep = (1.0 - mCurrentVal) / mCurrentPoint.next.time
         mCounter = 0
         mTimeInSamples = mCounter
     }
@@ -86,43 +86,42 @@ class MEnvelope(attack: Double, decay: Double, sustain: Double, release: Double)
         isPlaying = false
     }
 
-    val nextAmplitudeLinear: Double
-        get() {
-            if (!isPlaying) return 0.0
-            if (!isReleasing) {
-                if (mCurrentPoint.next == null) {    // sustain phase
-                    mCurrentVal = mCurrentPoint.level
-                } else {
-                    var processed = false
-                    while (mCounter >= mCurrentPoint.next.time) {
-                        mCounter = 0
-                        mCurrentPoint = mCurrentPoint.next
-                        if (mCurrentPoint.next == null) {
-                            mCurrentVal = mCurrentPoint.level
-                            processed = true
-                            break
-                        } else {
-                            mStep =
-                                (mCurrentPoint.next.level - mCurrentPoint.level) / mCurrentPoint.next.time
-                            mCurrentVal = mCurrentPoint.level
-                            processed = true
-                        }
-                    }
-                    if (!processed) {
-                        mCurrentVal += mStep
-                    }
-                    mCounter++
-                }
+    fun getNextAmplitudeLinear(): Double {
+        if (!isPlaying) return 0.0
+        if (!isReleasing) {
+            if (mCurrentPoint.next == null) {    // sustain phase
+                mCurrentVal = mCurrentPoint.level
             } else {
-                mCurrentVal -= mReleaseStep //release phase
+                var processed = false
+                while (mCounter >= mCurrentPoint.next.time) {
+                    mCounter = 0
+                    mCurrentPoint = mCurrentPoint.next
+                    if (mCurrentPoint.next == null) {
+                        mCurrentVal = mCurrentPoint.level
+                        processed = true
+                        break
+                    } else {
+                        mStep =
+                            (mCurrentPoint.next.level - mCurrentPoint.level) / mCurrentPoint.next.time
+                        mCurrentVal = mCurrentPoint.level
+                        processed = true
+                    }
+                }
+                if (!processed) {
+                    mCurrentVal += mStep
+                }
+                mCounter++
             }
-            if (mCurrentVal <= 0 && isReleasing) {
-                isPlaying = false
-                mCurrentVal = 0.0
-            }
-            mTimeInSamples++
-            return mCurrentVal
+        } else {
+            mCurrentVal -= mReleaseStep //release phase
         }
+        if (mCurrentVal <= 0 && isReleasing) {
+            isPlaying = false
+            mCurrentVal = 0.0
+        }
+        mTimeInSamples++
+        return mCurrentVal
+    }
 
     fun ampSamplesLinear(samples: DoubleArray, start: Int, end: Int, velocity: Double) {
         var amplitude = mCurrentVal * velocity
