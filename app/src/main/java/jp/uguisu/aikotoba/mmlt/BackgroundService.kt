@@ -22,7 +22,7 @@ class BackgroundService : Service() {
     }
 
     override fun onStart(intent: Intent, startId: Int) {
-        val flmml = FlMML.getStaticInstanceIfCreated()
+        val flmml = FlMML.staticInstanceIfCreated
         if (flmml == null || !flmml.isPlaying) stopSelf()
     }
 
@@ -33,7 +33,7 @@ class BackgroundService : Service() {
 
     override fun onDestroy() {
         Log.v("BackgroundService", "onDestroy()")
-        FlMML.getStaticInstance().setListener(null)
+        FlMML.staticInstance.setListener(null)
     }
 
     //VerifyErrorを避けるために囲う
@@ -59,7 +59,7 @@ class BackgroundService : Service() {
         }
 
         private fun createNotification(context: Context): Notification {
-            val title = FlMML.getStaticInstance().metaTitle
+            val title = FlMML.staticInstance.metaTitle
             val text = title.ifEmpty { "unknown title" }
 
             val activityIntent = Intent(context, MainActivity::class.java)
@@ -174,7 +174,7 @@ class BackgroundService : Service() {
         }
 
         fun activityClosed() {
-            FlMML.getStaticInstance().setListener(object : FlMML.Listener() {
+            FlMML.staticInstance.setListener(object : FlMML.Listener() {
                 override fun onComplete() {
                     stopPlaying()
                 }

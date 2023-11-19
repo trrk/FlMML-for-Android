@@ -176,7 +176,7 @@ class MainActivity : ComponentActivity(), OnSeekBarChangeListener, View.OnClickL
             }
         }
         try {
-            mFlmml = FlMML.getStaticInstance()
+            mFlmml = FlMML.staticInstance
         } catch (e: OutOfMemoryError) {
             mToast.setText(R.string.out_of_memory_initialization)
             mToast.show()
@@ -381,7 +381,7 @@ class MainActivity : ComponentActivity(), OnSeekBarChangeListener, View.OnClickL
 
         override fun run() {
             try {
-                mFlmml!!.play(s)
+                mFlmml!!.play(s!!)
                 mListener.mTextRunnable.set("").run()
                 if (binder != null) binder!!.startPlaying()
             } catch (e: OutOfMemoryError) {

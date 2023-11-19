@@ -3,7 +3,7 @@ package com.txt_nifty.sketch.flmml
 class MOscillator {
     protected var mOsc: Array<MOscMod?>
     var form = 0
-        protected set
+        private set
 
     init {
         boot()
