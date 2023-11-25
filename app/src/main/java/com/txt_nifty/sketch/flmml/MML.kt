@@ -6,6 +6,7 @@ import com.txt_nifty.sketch.flmml.MWarning.getString
 import com.txt_nifty.sketch.flmml.rep.Callback
 import com.txt_nifty.sketch.flmml.rep.EventDispatcher
 import com.txt_nifty.sketch.flmml.rep.FlMMLUtil
+import com.txt_nifty.sketch.flmml.rep.Macro
 import com.txt_nifty.sketch.flmml.rep.MacroArgument
 import java.util.Arrays
 import java.util.Locale
@@ -871,7 +872,7 @@ class MML : EventDispatcher() {
         return -1
     }
 
-    protected fun replaceMacro(macroTable: ArrayList<MacroArgument>): Boolean {
+    protected fun replaceMacro(macroTable: ArrayList<Macro>): Boolean {
         var substcache = ""
         for (index in 0 until macroTable.size) {
             val macro = macroTable[index]
@@ -1134,7 +1135,7 @@ class MML : EventDispatcher() {
                 return if (a.id.length == b.id.length) 0 else 1
             }
         }
-        val macroTable = ArrayList<MacroArgument>()
+        val macroTable = ArrayList<Macro>()
         val regTrimHead = Pattern.compile("(?m)^\\s*").matcher("")
         val regTrimFoot = Pattern.compile("(?m)\\s*$").matcher("")
         val tm = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9#\\+\\(\\)]*").matcher("")
@@ -1214,10 +1215,10 @@ class MML : EventDispatcher() {
                                     }
                                     macroTable.add(
                                         pos,
-                                        MacroArgument(
+                                        Macro(
                                             id,
                                             FlMMLUtil.substring(mString, nameEnd + 1, last),
-                                            args
+                                            args ?: emptyArray()
                                         )
                                     )
                                     mString.delete(start - 1, last + 1)
