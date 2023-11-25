@@ -1497,7 +1497,6 @@ class MML : EventDispatcher() {
         l = System.currentTimeMillis()
         process()
         Log.v("MML.time", "process():" + (System.currentTimeMillis() - l) + "ms")
-        mString = null
 
         // omit
         if (mTracks[mTracks.size - 1].numEvents == 0) {
