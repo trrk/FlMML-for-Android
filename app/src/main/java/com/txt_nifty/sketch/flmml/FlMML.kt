@@ -6,6 +6,8 @@ import com.txt_nifty.sketch.flmml.rep.Callback
 class FlMML private constructor() {
     private val mHandler = Handler()
     val mMml: MML
+    val rawMML: MML
+        get() = mMml
     private var mListener: Listener? = null
     private val mOnSecond: Runnable = object : Runnable {
         override fun run() {
@@ -115,13 +117,13 @@ class FlMML private constructor() {
     val voiceCount: Int
         get() = mMml.voiceCount
     val metaTitle: String
-        get() = mMml.metaTitle
+        get() = mMml.metaTitle!!
     val metaComment: String
-        get() = mMml.metaComment
+        get() = mMml.metaComment!!
     val metaArtist: String
-        get() = mMml.metaArtist
+        get() = mMml.metaArtist!!
     val metaCoding: String
-        get() = mMml.metaCoding
+        get() = mMml.metaCoding!!
 
     fun release() {
         mMml.release()

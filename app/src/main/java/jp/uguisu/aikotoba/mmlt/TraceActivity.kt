@@ -20,7 +20,7 @@ class TraceActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val tracks: ArrayList<MTrack>? = FlMML.getStaticInstance().rawMML.rawTracks
+        val tracks: ArrayList<MTrack>? = FlMML.staticInstance.rawMML.rawTracks
 
         if (tracks == null || tracks.size == 0) {
             finish()
@@ -118,7 +118,7 @@ class TraceActivity : Activity() {
             val sb = StringBuilder()
             loop@ while (!mFinish) {
                 val size = mTracks.size
-                val now = FlMML.getStaticInstance().nowMSec
+                val now = FlMML.staticInstance.nowMSec
                 run {
                     val start = System.currentTimeMillis()
                     val fpsDiff = start - fpsTimeStart
