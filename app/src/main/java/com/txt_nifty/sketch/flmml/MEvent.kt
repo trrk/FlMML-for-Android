@@ -1,7 +1,7 @@
 package com.txt_nifty.sketch.flmml
 
-class MEvent(val tick: Long) {
-    val delta: Int = 0
+class MEvent(@JvmField val tick: Long) {
+    @JvmField var delta: Int = 0
     private var mStatus: Int = 0
     private var mData0: Int = 0
     private var mData1: Int = 0
@@ -131,9 +131,8 @@ class MEvent(val tick: Long) {
     val status: Int
         get() = mStatus
 
-    fun getNoteNo(): Int {
-        return mData0
-    }
+    val noteNo: Int
+        get() = mData0
 
     fun getVelocity(): Int {
         return mData1
@@ -309,13 +308,11 @@ class MEvent(val tick: Long) {
         return mData1
     }
 
-    fun getPorDepth(): Int {
-        return mData0
-    }
+    val porDepth: Int
+        get() = mData0
 
-    fun getPorLen(): Int {
-        return mData1
-    }
+    val porLen: Int
+        get() = mData1
 
     fun getMidiPort(): Int {
         return mData0
