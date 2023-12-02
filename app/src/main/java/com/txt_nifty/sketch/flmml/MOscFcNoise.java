@@ -102,9 +102,8 @@ public class MOscFcNoise extends MOscMod {
     }
 
     public void getSamples(double[] samples, int start, int end) {
-        int i;
         double val;
-        for (i = start; i < end; i++) {
+        for (int i = start; i < end; i++) {
             samples[i] = getNextSample();
         }
     }

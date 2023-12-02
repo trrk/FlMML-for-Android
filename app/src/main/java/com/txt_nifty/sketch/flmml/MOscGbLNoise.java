@@ -69,9 +69,8 @@ public class MOscGbLNoise extends MOscMod {
     }
 
     public void getSamples(double[] samples, int start, int end) {
-        int i;
         double val;
-        for (i = start; i < end; i++) {
+        for (int i = start; i < end; i++) {
             val = sTable[mPhase >> GB_NOISE_PHASE_SFT];
             if (m_skip > 0) {
                 val = (val + m_sum) / (m_skip + 1);
