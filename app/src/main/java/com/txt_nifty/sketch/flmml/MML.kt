@@ -1,7 +1,6 @@
 package com.txt_nifty.sketch.flmml
 
 import android.util.Log
-import android.util.SparseIntArray
 import com.txt_nifty.sketch.flmml.MWarning.getString
 import com.txt_nifty.sketch.flmml.rep.Callback
 import com.txt_nifty.sketch.flmml.rep.EventDispatcher
@@ -810,38 +809,37 @@ class MML : EventDispatcher() {
             "processRepeat()->toLowercase():" + (System.currentTimeMillis() - ltime) + "ms"
         )
         begin()
-        val repeat = SparseIntArray()
-        val origin = SparseIntArray()
-        val start = SparseIntArray()
-        val last = SparseIntArray()
-        var nest = -1
         var length = mString.length
         val replaced = StringBuilder()
+        data class Repeat (val origin: Int, val repeat: Int, val start: Int, var last: Int)
+        val repeats = mutableListOf<Repeat>()
+
         while (mLetter < length) {
             val c = mString[mLetter++]
             when (c) {
                 '/' -> if (getChar() == ':') {
                     next()
-                    origin.append(++nest, mLetter - 2)
-                    repeat.append(nest, getUInt(2))
-                    start.append(nest, mLetter)
-                    last.append(nest, -1)
-                } else if (nest >= 0) {
+                    val origin = mLetter - 2
+                    val repeatnum = getUInt(2)
+                    val repeat = Repeat(origin, repeatnum, mLetter, -1)
+                    repeats.add(repeat)
+                } else if (repeats.isNotEmpty()) {
                     mLetter--
-                    last.append(nest, mLetter)
+                    repeats.last().last = mLetter
                     mString.deleteCharAt(mLetter)
                     length--
                 }
 
-                ':' -> if (getChar() == '/' && nest >= 0) {
+                ':' -> if (getChar() == '/' && repeats.isNotEmpty()) {
                     next()
-                    var offset = origin[nest]
-                    val repeatnum = repeat[nest]
-                    val haslast = last[nest] >= 0
+                    val inf = repeats.removeLast()
+                    var offset = inf.origin
+                    val repeatnum = inf.repeat
+                    val haslast = inf.last >= 0
                     if (repeatnum > 0) {
-                        val contents = FlMMLUtil.substring(mString, start[nest], mLetter - 2)
-                        val contentslen = mLetter - 2 - start[nest]
-                        val lastlen = last[nest] - start[nest]
+                        val contents = FlMMLUtil.substring(mString, inf.start, mLetter - 2)
+                        val contentslen = mLetter - 2 - inf.start
+                        val lastlen = inf.last - inf.start
                         val addedlen =
                             if (!haslast) repeatnum * contentslen else (repeatnum - 1) * contentslen + lastlen
                         replaced.setLength(0)
@@ -849,7 +847,7 @@ class MML : EventDispatcher() {
                             if (i < repeatnum - 1 || !haslast) {
                                 replaced.append(contents)
                             } else {
-                                replaced.append(mString, start[nest], last[nest])
+                                replaced.append(mString, inf.start, inf.last)
                             }
                         }
                         mString.replace(offset, mLetter, replaced.toString())
@@ -860,11 +858,10 @@ class MML : EventDispatcher() {
                         length -= mLetter - offset
                     }
                     mLetter = offset
-                    nest--
                 }
             }
         }
-        if (nest >= 0) warning(MWarning.UNCLOSED_REPEAT, "")
+        if (repeats.isNotEmpty()) warning(MWarning.UNCLOSED_REPEAT, "")
     }
 
     protected fun getIndex(idArr: IntArray, id: String): Int {
