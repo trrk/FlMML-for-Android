@@ -30,7 +30,7 @@ class MOscillator {
     }
 
     fun asLFO() {
-        if (mOsc[NOISE] != null) (mOsc[NOISE] as MOscNoise?)!!.disableResetPhase()
+        if (mOsc[NOISE] != null) (mOsc[NOISE] as MOscNoise).disableResetPhase()
     }
 
     fun setForm(form: Int): MOscMod {
@@ -39,16 +39,16 @@ class MOscillator {
         this.form = form
         when (form) {
             NOISE -> {
-                val modNoise = mOsc[NOISE] as MOscNoise?
-                modNoise!!.restoreFreq()
+                val modNoise = mOsc[NOISE] as MOscNoise
+                modNoise.restoreFreq()
             }
             FC_NOISE -> {
-                val modFcNoise = getMod(FC_NOISE) as MOscFcNoise?
-                modFcNoise!!.setLongMode()
+                val modFcNoise = getMod(FC_NOISE) as MOscFcNoise
+                modFcNoise.setLongMode()
             }
             FC_S_NOISE -> {
-                val modFcNoise = getMod(FC_S_NOISE) as MOscFcNoise?
-                modFcNoise!!.setShortMode()
+                val modFcNoise = getMod(FC_S_NOISE) as MOscFcNoise
+                modFcNoise.setShortMode()
             }
         }
         return getMod(form)
