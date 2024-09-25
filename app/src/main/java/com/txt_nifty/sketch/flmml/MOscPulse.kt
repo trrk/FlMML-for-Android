@@ -13,14 +13,15 @@ class MOscPulse : MOscMod() {
     }
 
     override fun getNextSample(): Double {
-        val `val` = if ((mPhase < mPwm)) 1.0 else (if (mMix != 0) mModNoise!!.nextSample else -1.0)
+        val `val` =
+            if (mPhase < mPwm) 1.0 else (if (mMix != 0) mModNoise!!.getNextSample() else -1.0)
         mPhase = (mPhase + mFreqShift) and PHASE_MSK
         return `val`
     }
 
     override fun getNextSampleOfs(ofs: Int): Double {
         val `val` =
-            if ((((mPhase + ofs) and PHASE_MSK) < mPwm)) 1.0 else (if (mMix != 0) mModNoise!!.getNextSampleOfs(
+            if (((mPhase + ofs) and PHASE_MSK) < mPwm) 1.0 else (if (mMix != 0) mModNoise!!.getNextSampleOfs(
                 ofs
             ) else -1.0)
         mPhase = (mPhase + mFreqShift) and PHASE_MSK
@@ -28,20 +29,15 @@ class MOscPulse : MOscMod() {
     }
 
     override fun getSamples(samples: DoubleArray, start: Int, end: Int) {
-        var i: Int
         if (mMix != 0) { // MIXモード
-            i = start
-            while (i < end) {
-                samples[i] = if ((mPhase < mPwm)) 1.0 else mModNoise!!.nextSample
+            for (i in start..<end) {
+                samples[i] = if (mPhase < mPwm) 1.0 else mModNoise!!.getNextSample()
                 mPhase = (mPhase + mFreqShift) and PHASE_MSK
-                i++
             }
         } else { // 通常の矩形波
-            i = start
-            while (i < end) {
-                samples[i] = if ((mPhase < mPwm)) 1.0 else -1.0
+            for (i in start..<end) {
+                samples[i] = if (mPhase < mPwm) 1.0 else -1.0
                 mPhase = (mPhase + mFreqShift) and PHASE_MSK
-                i++
             }
         }
     }
@@ -49,22 +45,17 @@ class MOscPulse : MOscMod() {
     override fun getSamplesWithSyncIn(
         samples: DoubleArray, syncin: BooleanArray, start: Int, end: Int
     ) {
-        var i: Int
         if (mMix != 0) { // MIXモード
-            i = start
-            while (i < end) {
+            for (i in start..<end) {
                 if (syncin[i]) resetPhase()
-                samples[i] = if ((mPhase < mPwm)) 1.0 else mModNoise!!.nextSample
+                samples[i] = if (mPhase < mPwm) 1.0 else mModNoise!!.getNextSample()
                 mPhase = (mPhase + mFreqShift) and PHASE_MSK
-                i++
             }
         } else { // 通常の矩形波
-            i = start
-            while (i < end) {
+            for (i in start..<end) {
                 if (syncin[i]) resetPhase()
-                samples[i] = if ((mPhase < mPwm)) 1.0 else -1.0
+                samples[i] = if (mPhase < mPwm) 1.0 else -1.0
                 mPhase = (mPhase + mFreqShift) and PHASE_MSK
-                i++
             }
         }
     }
@@ -72,24 +63,19 @@ class MOscPulse : MOscMod() {
     override fun getSamplesWithSyncOut(
         samples: DoubleArray, syncout: BooleanArray, start: Int, end: Int
     ) {
-        var i: Int
         if (mMix != 0) { // MIXモード
-            i = start
-            while (i < end) {
-                samples[i] = if ((mPhase < mPwm)) 1.0 else mModNoise!!.nextSample
+            for (i in start..<end) {
+                samples[i] = if (mPhase < mPwm) 1.0 else mModNoise!!.getNextSample()
                 mPhase += mFreqShift
                 syncout[i] = (mPhase > PHASE_MSK)
                 mPhase = mPhase and PHASE_MSK
-                i++
             }
         } else { // 通常の矩形波
-            i = start
-            while (i < end) {
-                samples[i] = if ((mPhase < mPwm)) 1.0 else -1.0
+            for (i in start..<end) {
+                samples[i] = if (mPhase < mPwm) 1.0 else -1.0
                 mPhase += mFreqShift
                 syncout[i] = (mPhase > PHASE_MSK)
                 mPhase = mPhase and PHASE_MSK
-                i++
             }
         }
     }
@@ -102,7 +88,7 @@ class MOscPulse : MOscMod() {
         mMix = mix
     }
 
-    fun setNoise(noise: MOscNoise?) {
+    fun setNoise(noise: MOscNoise) {
         mModNoise = noise
     }
 

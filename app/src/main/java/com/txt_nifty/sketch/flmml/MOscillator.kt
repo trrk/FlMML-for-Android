@@ -62,9 +62,9 @@ class MOscillator {
     }
 
     private fun setNoiseToPulse() {
-        val modPulse = getMod(PULSE) as MOscPulse?
-        val modNoise = getMod(NOISE) as MOscNoise?
-        modPulse!!.setNoise(modNoise)
+        val modPulse = getMod(PULSE) as MOscPulse
+        val modNoise = getMod(NOISE) as MOscNoise
+        modPulse.setNoise(modNoise)
     }
 
     companion object {
