@@ -29,11 +29,9 @@ class MOscWave : MOscMod() {
     }
 
     override fun getSamples(samples: DoubleArray, start: Int, end: Int) {
-        var i = start
-        while (i < end) {
+        for (i in start..<end) {
             samples[i] = sTable[mWaveNo]!![(mPhase / sLength[mWaveNo]).toInt()]
             mPhase = (mPhase + mFreqShift) and PHASE_MSK
-            i++
         }
     }
 
@@ -43,14 +41,12 @@ class MOscWave : MOscMod() {
         start: Int,
         end: Int
     ) {
-        var i = start
-        while (i < end) {
+        for (i in start..<end) {
             if (syncin[i]) {
                 resetPhase()
             }
             samples[i] = sTable[mWaveNo]!![(mPhase / sLength[mWaveNo]).toInt()]
             mPhase = (mPhase + mFreqShift) and PHASE_MSK
-            i++
         }
     }
 
@@ -60,13 +56,11 @@ class MOscWave : MOscMod() {
         start: Int,
         end: Int
     ) {
-        var i = start
-        while (i < end) {
+        for (i in start..<end) {
             samples[i] = sTable[mWaveNo]!![(mPhase / sLength[mWaveNo]).toInt()]
             mPhase += mFreqShift
             syncout[i] = (mPhase > PHASE_MSK)
             mPhase = mPhase and PHASE_MSK
-            i++
         }
     }
 
@@ -90,27 +84,29 @@ class MOscWave : MOscMod() {
             sLength[waveNo] = 0.0 // メモ: Double でなくてもよいかもしれない
             sTable[waveNo] = DoubleArray((wave.length / 2))
             sTable[waveNo]!![0] = 0.0
-            var i = 0
-            var j = 0
             var `val` = 0
-            while (i < MAX_LENGTH && i < wave.length) {
+            for (i in 0..<minOf(MAX_LENGTH, wave.length)) {
                 var code = wave[i].code
-                if (48 <= code && code < 58) {
-                    code -= 48
-                } else if (97 <= code && code < 103) {
-                    code -= 97 - 10
-                } else {
-                    code = 0
+                when (code) {
+                    in 48..57 -> {
+                        code -= 48
+                    }
+
+                    in 97..102 -> {
+                        code -= 97 - 10
+                    }
+
+                    else -> {
+                        code = 0
+                    }
                 }
-                if ((j and 1) != 0) {
+                if ((i and 1) != 0) {
                     `val` += code
                     sTable[waveNo]!![sLength[waveNo].toInt()] = ((`val` - 127.5) / 127.5)
                     sLength[waveNo]++
                 } else {
                     `val` = code shl 4
                 }
-                i++
-                j++
             }
             if (sLength[waveNo] == 0.0) sLength[waveNo] = 1.0
             sLength[waveNo] = (PHASE_MSK + 1) / sLength[waveNo]
