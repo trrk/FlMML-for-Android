@@ -51,7 +51,6 @@ public class MOscFcDpcm extends MOscMod {
         sLength[waveNo] = 0;
 
         sTable[waveNo] = new long[FC_DPCM_TABLE_MAX_LEN];
-        int strCnt = 0;
         int intCnt = 0;
         int intCn2 = 0;
         int intPos = 0;
@@ -59,7 +58,7 @@ public class MOscFcDpcm extends MOscMod {
             sTable[waveNo][i] = 0;
         }
 
-        for (strCnt = 0; strCnt < wave.length(); strCnt++) {
+        for (int strCnt = 0; strCnt < wave.length(); strCnt++) {
             int code = wave.charAt(strCnt);
             if (0x41 <= code && code <= 0x5a) { //A-Z
                 code -= 0x41;
