@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace 'jp.uguisu.aikotoba.mmlt'
-    compileSdkVersion 33
+    compileSdkVersion 35
 
     defaultConfig {
         minSdkVersion 14
