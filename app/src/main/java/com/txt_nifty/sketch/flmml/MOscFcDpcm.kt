@@ -200,10 +200,10 @@ class MOscFcDpcm : MOscMod() {
         const val FC_DPCM_TABLE_MAX_LEN: Int = (FC_DPCM_MAX_LEN shr 2) + 2
         const val FC_DPCM_NEXT: Int = 44100 shl FC_DPCmPhase_SFT
         protected var sInit: Int = 0
-        protected var sTable: Array<LongArray?>
-        protected var sIntVol: IntArray //波形初期位置
-        protected var sLoopFg: IntArray //ループフラグ
-        protected var sLength: IntArray //再生レングス
+        protected lateinit var sTable: Array<LongArray?> // TODO nullable?
+        protected lateinit var sIntVol: IntArray //波形初期位置
+        protected lateinit var sLoopFg: IntArray //ループフラグ
+        protected lateinit var sLength: IntArray //再生レングス
         protected var sInterval: IntArray = intArrayOf(
             //音程
             428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 85, 72, 54,
@@ -212,9 +212,9 @@ class MOscFcDpcm : MOscMod() {
         fun boot() {
             if (sInit != 0) return
             sTable = arrayOfNulls(MAX_WAVE)
-            sIntVol = IntArray((MAX_WAVE))
-            sLoopFg = IntArray((MAX_WAVE))
-            sLength = IntArray((MAX_WAVE))
+            sIntVol = IntArray(MAX_WAVE)
+            sLoopFg = IntArray(MAX_WAVE)
+            sLength = IntArray(MAX_WAVE)
             setWave(0, 127, 0, "")
             sInit = 1
         }
