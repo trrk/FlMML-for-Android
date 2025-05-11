@@ -27,32 +27,31 @@ class MOscFcDpcm : MOscMod() {
         mWaveNo = waveNo
     }
 
-    private val value: Double
-        get() {
-            if (mLength > 0) {
-                if (((sTable[mWaveNo]!![mAddress] shr mBit) and 1L) != 0L) {
-                    if (mWav < 126) mWav += 2
-                } else {
-                    if (mWav > 1) mWav -= 2
-                }
-                mBit++
-                if (mBit >= 32) {
-                    mBit = 0
-                    mAddress++
-                }
-                mLength--
-                if (mLength == 0) {
-                    if (sLoopFg[mWaveNo] != 0) {
-                        mAddress = 0
-                        mBit = 0
-                        mLength = sLength[mWaveNo]
-                    }
-                }
-                return (mWav - 64) / 64.0
+    private fun getValue(): Double {
+        if (mLength > 0) {
+            if (((sTable[mWaveNo]!![mAddress] shr mBit) and 1L) != 0L) {
+                if (mWav < 126) mWav += 2
             } else {
-                return (mWav - 64) / 64.0
+                if (mWav > 1) mWav -= 2
             }
+            mBit++
+            if (mBit >= 32) {
+                mBit = 0
+                mAddress++
+            }
+            mLength--
+            if (mLength == 0) {
+                if (sLoopFg[mWaveNo] != 0) {
+                    mAddress = 0
+                    mBit = 0
+                    mLength = sLength[mWaveNo]
+                }
+            }
+            return (mWav - 64) / 64.0
+        } else {
+            return (mWav - 64) / 64.0
         }
+    }
 
     override fun resetPhase() {
         mPhase = 0
@@ -138,8 +137,7 @@ class MOscFcDpcm : MOscMod() {
 
     override fun getSamples(samples: DoubleArray, start: Int, end: Int) {
         var `val` = ((mWav - 64) / 64.0)
-        var i = start
-        while (i < end) {
+        for (i in start until end) {
             mPhase = (mPhase + mFreqShift) and PHASE_MSK
             while (FC_DPCM_NEXT <= mPhase) {
                 mPhase -= FC_DPCM_NEXT
@@ -172,7 +170,6 @@ class MOscFcDpcm : MOscMod() {
                 }
             }
             samples[i] = `val`
-            i++
         }
     }
 
@@ -234,20 +231,28 @@ class MOscFcDpcm : MOscMod() {
 
             for (strCnt in 0 until wave.length) {
                 var code = wave[strCnt].code
-                if (0x41 <= code && code <= 0x5a) { //A-Z
-                    code -= 0x41
-                } else if (0x61 <= code && code <= 0x7a) { //a-z
-                    code -= 0x61 - 26
-                } else if (0x30 <= code && code <= 0x39) { //0-9
-                    code -= 0x30 - 26 - 26
-                } else if (0x2b == code) { //+
-                    code = 26 + 26 + 10
-                } else if (0x2f == code) { // /
-                    code = 26 + 26 + 10 + 1
-                } else if (0x3d == code) { // =
-                    code = 0
-                } else {
-                    code = 0
+                when (code) {
+                    in 0x41..0x5a -> { //A-Z
+                        code -= 0x41
+                    }
+                    in 0x61..0x7a -> { //a-z
+                        code -= 0x61 - 26
+                    }
+                    in 0x30..0x39 -> { //0-9
+                        code -= 0x30 - 26 - 26
+                    }
+                    0x2b -> { //+
+                        code = 26 + 26 + 10
+                    }
+                    0x2f -> { // /
+                        code = 26 + 26 + 10 + 1
+                    }
+                    0x3d -> { // =
+                        code = 0
+                    }
+                    else -> {
+                        code = 0
+                    }
                 }
                 for (i in 5 downTo 0) {
                     sTable[waveNo]!![intPos] += (((code shr i) and 1) shl (intCnt * 8 + 7 - intCn2)).toLong()
