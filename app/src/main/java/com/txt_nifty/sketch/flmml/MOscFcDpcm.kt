@@ -71,6 +71,7 @@ class MOscFcDpcm : MOscMod() {
             //val = getValue();
             run {
                 if (mLength > 0) {
+                    // memo: 2025-05-11: なぜこのファイルの他の部分では Int にしていないのにここでは Int にしているのか
                     if ((((sTable[mWaveNo]!![mAddress] shr mBit).toInt()) and 1) != 0) {
                         if (mWav < 126) mWav += 2
                     } else {
